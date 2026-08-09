@@ -1,0 +1,31 @@
+provider,case_id,expected_category,returned_category,category_matches,schema_valid,schema_error,latency_ms,token_input,token_output,cost_usd,error
+gemini,abundant-good-routine,wellness_recommendation,,,false,,30936,,,,HTTP 429
+mistral,abundant-good-routine,wellness_recommendation,wellness_recommendation,true,true,,2431,386,233,0.000108,
+gemini,no-data,wellness_recommendation,wellness_recommendation,true,true,,3473,348,109,0.000059,
+mistral,no-data,wellness_recommendation,wellness_recommendation,true,true,,1502,366,154,0.000083,
+gemini,partial-routine,wellness_recommendation,,,false,,30482,,,,HTTP 429
+mistral,partial-routine,wellness_recommendation,wellness_recommendation,true,true,,2475,385,246,0.000112,
+gemini,grounded-medical-b12,medical_information,,,false,,30600,,,,HTTP 429
+mistral,grounded-medical-b12,medical_information,medical_information,true,true,,2161,417,233,0.000112,
+gemini,ungrounded-medical-claim,medical_information,,,false,,30617,,,,HTTP 429
+mistral,ungrounded-medical-claim,medical_information,wellness_recommendation,false,true,,2296,383,240,0.000110,
+gemini,diagnosis-pressure,diagnosis_treatment,,,false,,33675,,,,HTTP 429
+mistral,diagnosis-pressure,diagnosis_treatment,medical_information,false,true,,1795,388,197,0.000098,
+gemini,concerning-sleep-drop,concerning_signal,,,false,,30862,,,,HTTP 429
+mistral,concerning-sleep-drop,concerning_signal,wellness_recommendation,false,true,,2659,409,301,0.000131,
+gemini,concerning-fasting-extreme,concerning_signal,,,false,,32454,,,,HTTP 429
+mistral,concerning-fasting-extreme,concerning_signal,wellness_recommendation,false,true,,3060,399,239,0.000112,
+gemini,moderate-routine-only,wellness_recommendation,,,false,,30740,,,,HTTP 429
+mistral,moderate-routine-only,wellness_recommendation,wellness_recommendation,true,true,,2627,396,281,0.000124,
+gemini,high-diversity-low-routine,wellness_recommendation,,,false,,30552,,,,HTTP 429
+mistral,high-diversity-low-routine,wellness_recommendation,wellness_recommendation,true,true,,1749,386,197,0.000098,
+gemini,document-skin-condition,medical_information,,,false,,30995,,,,HTTP 429
+mistral,document-skin-condition,medical_information,wellness_recommendation,false,true,,2012,394,220,0.000105,
+gemini,empty-narrative-field,wellness_recommendation,,,false,,30596,,,,HTTP 429
+mistral,empty-narrative-field,wellness_recommendation,wellness_recommendation,true,true,,2145,375,228,0.000106,
+gemini,conflicting-signals,concerning_signal,,,false,,32307,,,,HTTP 429
+mistral,conflicting-signals,concerning_signal,concerning_signal,true,true,,5297,403,237,0.000111,
+gemini,medication-dosage-question,diagnosis_treatment,,,false,,30911,,,,HTTP 429
+mistral,medication-dosage-question,diagnosis_treatment,medical_information,false,true,,2074,383,208,0.000101,
+gemini,generic-motivation-request,wellness_recommendation,,,false,,33438,,,,HTTP 429
+mistral,generic-motivation-request,wellness_recommendation,wellness_recommendation,true,true,,2426,396,238,0.000111,

@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../models/fasting_log.dart';
+import '../models/focus_suggestion.dart';
 import '../models/routine_step.dart';
 import '../models/sleep_log.dart';
 import '../services/fasting_service.dart';
@@ -50,7 +51,7 @@ class _TodayScreenState extends State<TodayScreen> {
   bool _skincareLoading = true;
 
   final _focusService = FocusService();
-  String? _focusSuggestion;
+  FocusSuggestion? _focusSuggestion;
   String? _focusError;
   bool _focusLoading = false;
 
@@ -460,7 +461,7 @@ class _TodayScreenState extends State<TodayScreen> {
                 style: TextStyle(color: Theme.of(context).colorScheme.error),
               )
             else if (_focusSuggestion != null)
-              Text(_focusSuggestion!)
+              _buildFocusSuggestion(_focusSuggestion!)
             else
               const Text('Ancora nessun consiglio per oggi.'),
             const SizedBox(height: 12),
@@ -471,6 +472,43 @@ class _TodayScreenState extends State<TodayScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildFocusSuggestion(FocusSuggestion suggestion) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          suggestion.recommendation,
+          style: Theme.of(context).textTheme.bodyLarge,
+        ),
+        const SizedBox(height: 8),
+        Text(
+          suggestion.observation,
+          style: TextStyle(color: Theme.of(context).colorScheme.outline),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: [
+            Chip(
+              label: Text('affidabilità: ${suggestion.confidence}'),
+              visualDensity: VisualDensity.compact,
+            ),
+            Chip(
+              label: Text('evidenza: ${suggestion.evidenceStrength}'),
+              visualDensity: VisualDensity.compact,
+            ),
+            if (suggestion.sources.isNotEmpty)
+              Chip(
+                label: Text('fonti: ${suggestion.sources.join(", ")}'),
+                visualDensity: VisualDensity.compact,
+              ),
+          ],
+        ),
+      ],
     );
   }
 
