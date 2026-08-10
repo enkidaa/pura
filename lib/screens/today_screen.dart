@@ -198,13 +198,27 @@ class _TodayScreenState extends State<TodayScreen> {
   // Range (max-min) of wake times across recent nights, in minutes —
   // a simple, explainable proxy for circadian regularity. Needs at least
   // 2 nights to say anything.
+  // Smallest arc on a 24h clock containing all wake times — a plain
+  // max-min on minute-of-day breaks near midnight (23:50 vs 00:10 would
+  // read as ~24h apart instead of 20 minutes). Sort, find the largest gap
+  // between consecutive points (wrapping last→first), and the answer is
+  // the full circle minus that gap.
   int? _wakeTimeVariabilityMinutes() {
     if (_recentSleepLogs.length < 2) return null;
     final minutesOfDay = _recentSleepLogs
         .map((log) => log.wakeTime.hour * 60 + log.wakeTime.minute)
-        .toList();
-    return minutesOfDay.reduce((a, b) => a > b ? a : b) -
-        minutesOfDay.reduce((a, b) => a < b ? a : b);
+        .toList()
+      ..sort();
+
+    const dayMinutes = 24 * 60;
+    var largestGap = 0;
+    for (var i = 0; i < minutesOfDay.length; i++) {
+      final next =
+          i + 1 < minutesOfDay.length ? minutesOfDay[i + 1] : minutesOfDay[0] + dayMinutes;
+      final gap = next - minutesOfDay[i];
+      if (gap > largestGap) largestGap = gap;
+    }
+    return dayMinutes - largestGap;
   }
 
   Future<void> _saveSleep(DateTime bedtime, DateTime wakeTime) async {

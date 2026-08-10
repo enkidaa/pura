@@ -198,11 +198,20 @@ function ruleBasedDiagnosisFlag(text: string): boolean {
   return DIAGNOSIS_KEYWORDS.some((keyword) => lower.includes(keyword));
 }
 
+interface ClassifierResult {
+  category: string | null;
+  failed: boolean;
+  latencyMs: number;
+  tokenInput: number | null;
+  tokenOutput: number | null;
+}
+
 async function classifyIndependently(
   observation: string,
   recommendation: string,
   apiKey: string,
-): Promise<string | null> {
+): Promise<ClassifierResult> {
+  const startTime = Date.now();
   try {
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
@@ -223,20 +232,41 @@ async function classifyIndependently(
         }),
       },
     );
+    const latencyMs = Date.now() - startTime;
 
-    if (!response.ok) return null;
+    if (!response.ok) {
+      return { category: null, failed: true, latencyMs, tokenInput: null, tokenOutput: null };
+    }
 
     const data = await response.json();
+    const tokenInput = data.usageMetadata?.promptTokenCount ?? null;
+    const tokenOutput = data.usageMetadata?.candidatesTokenCount ?? null;
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (typeof text !== "string") return null;
+
+    if (typeof text !== "string") {
+      return { category: null, failed: true, latencyMs, tokenInput, tokenOutput };
+    }
 
     const parsed = JSON.parse(text);
     const category = parsed?.category;
-    return typeof category === "string" && SAFETY_CATEGORY_VALUES.includes(category) ? category : null;
+    const valid = typeof category === "string" && SAFETY_CATEGORY_VALUES.includes(category);
+
+    // A response that parses but doesn't contain a valid category still
+    // counts as a failed classification — fail-open must be explicit and
+    // logged, never silently indistinguishable from "the classifier voted
+    // wellness_recommendation".
+    return {
+      category: valid ? category : null,
+      failed: !valid,
+      latencyMs,
+      tokenInput,
+      tokenOutput,
+    };
   } catch {
     // Independent classifier failing is not silent: it just can't add a
-    // vote, the rule-based flag and the model's own category still apply.
-    return null;
+    // vote, the rule-based flag and the model's own category still apply —
+    // fail-open, tracked explicitly via `failed` rather than left implicit.
+    return { category: null, failed: true, latencyMs: Date.now() - startTime, tokenInput: null, tokenOutput: null };
   }
 }
 
@@ -256,6 +286,10 @@ interface SafetyResult {
   modelCategory: string;
   finalCategory: string;
   action: "passthrough" | "modified";
+  classifierFailed: boolean;
+  classifierLatencyMs: number;
+  classifierTokenInput: number | null;
+  classifierTokenOutput: number | null;
 }
 
 async function applySafetyLayer(
@@ -266,11 +300,12 @@ async function applySafetyLayer(
   const combinedText = `${suggestion.observation} ${suggestion.recommendation}`;
 
   const ruleFlag = ruleBasedDiagnosisFlag(combinedText);
-  const independentCategory = await classifyIndependently(
+  const classifierResult = await classifyIndependently(
     suggestion.observation,
     suggestion.recommendation,
     geminiApiKey,
   );
+  const independentCategory = classifierResult.category;
 
   let finalCategory: string;
   if (ruleFlag || modelCategory === "diagnosis_treatment" || independentCategory === "diagnosis_treatment") {
@@ -290,7 +325,10 @@ async function applySafetyLayer(
     finalSuggestion = { ...suggestion, recommendation: DIAGNOSIS_FALLBACK_MESSAGE, safety_category: finalCategory };
     action = "modified";
   } else if (finalCategory === "medical_information") {
-    const grounded = suggestion.evidence.length > 0;
+    // "Grounded" means the medical claim is actually tied to the user's
+    // uploaded document — not just "the model listed some evidence".
+    // Evidence citing routine/plant data isn't medical grounding.
+    const grounded = suggestion.evidence.length > 0 && suggestion.sources.includes("user_document");
     if (!grounded) {
       finalSuggestion = {
         ...suggestion,
@@ -312,7 +350,16 @@ async function applySafetyLayer(
     finalSuggestion = { ...suggestion, safety_category: finalCategory };
   }
 
-  return { suggestion: finalSuggestion, modelCategory, finalCategory, action };
+  return {
+    suggestion: finalSuggestion,
+    modelCategory,
+    finalCategory,
+    action,
+    classifierFailed: classifierResult.failed,
+    classifierLatencyMs: classifierResult.latencyMs,
+    classifierTokenInput: classifierResult.tokenInput,
+    classifierTokenOutput: classifierResult.tokenOutput,
+  };
 }
 
 const MAX_DOCUMENT_BYTES = 15 * 1024 * 1024;
@@ -334,8 +381,8 @@ function jsonResponse(body: unknown, status = 200) {
 }
 
 // Metadata-only telemetry — never the prompt, digest, or suggestion text.
-// Latency/tokens reflect the main generation call only, not the separate
-// safety-classifier call.
+// Latency/tokens are pipeline totals (generation call + independent safety
+// classifier call), so cost tracking reflects what a request actually costs.
 async function logLlmCall(
   // deno-lint-ignore no-explicit-any
   supabase: any,
@@ -486,11 +533,28 @@ Deno.serve(async (req) => {
   }
 
   if (recentSleep && recentSleep.length >= 2) {
-    const minutesOfDay = recentSleep.map((row) => {
-      const t = new Date(row.wake_time);
-      return t.getUTCHours() * 60 + t.getUTCMinutes();
-    });
-    const variability = Math.max(...minutesOfDay) - Math.min(...minutesOfDay);
+    // sleep_logs.wake_time is `timestamp` (no timezone) — a wall-clock value,
+    // not an instant. PostgREST returns it as a zone-less string (e.g.
+    // "2026-08-10T07:00:00"), which the JS Date constructor parses as local
+    // time to *this* runtime. Supabase Edge Functions run in UTC, so
+    // local-to-runtime = UTC and getUTCHours() recovers the original digits
+    // exactly. (Same circular-arc logic as the Flutter client in
+    // today_screen.dart — a plain max-min breaks near midnight.)
+    const minutesOfDay = recentSleep
+      .map((row) => {
+        const t = new Date(row.wake_time);
+        return t.getUTCHours() * 60 + t.getUTCMinutes();
+      })
+      .sort((a, b) => a - b);
+
+    const dayMinutes = 24 * 60;
+    let largestGap = 0;
+    for (let i = 0; i < minutesOfDay.length; i++) {
+      const next = i + 1 < minutesOfDay.length ? minutesOfDay[i + 1] : minutesOfDay[0] + dayMinutes;
+      const gap = next - minutesOfDay[i];
+      if (gap > largestGap) largestGap = gap;
+    }
+    const variability = dayMinutes - largestGap;
     const hours = Math.floor(variability / 60);
     const minutes = variability % 60;
     digestLines.push(
@@ -623,11 +687,18 @@ Deno.serve(async (req) => {
 
   const safetyResult = await applySafetyLayer(validation.value, geminiApiKey);
 
+  // Pipeline totals — the generation call plus the independent safety
+  // classifier call, not just the first. A per-request cost/latency figure
+  // that silently excludes the second LLM call understates the real cost.
   await logLlmCall(supabase, {
     userId: user.id,
-    latencyMs,
-    tokenInput,
-    tokenOutput,
+    latencyMs: latencyMs + safetyResult.classifierLatencyMs,
+    tokenInput: tokenInput != null || safetyResult.classifierTokenInput != null
+      ? (tokenInput ?? 0) + (safetyResult.classifierTokenInput ?? 0)
+      : null,
+    tokenOutput: tokenOutput != null || safetyResult.classifierTokenOutput != null
+      ? (tokenOutput ?? 0) + (safetyResult.classifierTokenOutput ?? 0)
+      : null,
     error: null,
     safetyCategory: safetyResult.finalCategory,
   });
@@ -639,6 +710,7 @@ Deno.serve(async (req) => {
     model_category: safetyResult.modelCategory,
     final_category: safetyResult.finalCategory,
     action: safetyResult.action,
+    classifier_failed: safetyResult.classifierFailed,
   });
   if (safetyLogError) console.error("safety_events insert failed:", safetyLogError.message);
 
