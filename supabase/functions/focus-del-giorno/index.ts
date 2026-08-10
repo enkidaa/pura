@@ -47,6 +47,10 @@ Regole:
 - Se ti viene indicata la fase del ciclo mestruale, puoi usarla per contestualizzare energia/consigli
   (es. più riposo in fase mestruale, più energia in fase follicolare/ovulazione) ma solo se pertinente
   — non è un dato medico su cui basare diagnosi.
+- Potrebbe esserti allegato un documento (es. referto). Decidi tu se è pertinente al consiglio di
+  oggi: se lo è, usalo e aggiungi "user_document" a "sources"; se non c'entra nulla con il consiglio
+  che stai per dare, IGNORALO — non citarlo, non forzare un collegamento, non spostare il consiglio
+  verso un tema medico solo perché il documento esiste.
 - Non inventare dati che non ti sono stati dati.`;
 
 const RESPONSE_SCHEMA = {
