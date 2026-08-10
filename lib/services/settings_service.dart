@@ -11,7 +11,7 @@ class SettingsService {
 
     final rows = await _client
         .from('profiles')
-        .select('theme_mode, language, evening_ritual_time')
+        .select('theme_mode, language, evening_ritual_time, approach, sex')
         .eq('user_id', userId)
         .limit(1);
 
@@ -22,6 +22,8 @@ class SettingsService {
       themeMode: _parseThemeMode(row['theme_mode'] as String?),
       language: row['language'] as String? ?? 'it',
       eveningRitualTime: _parseTime(row['evening_ritual_time'] as String?),
+      approach: _parseApproach(row['approach'] as String?),
+      sex: _parseSex(row['sex'] as String?),
     );
   }
 
@@ -37,6 +39,14 @@ class SettingsService {
     final formatted =
         '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
     return _upsert({'evening_ritual_time': formatted});
+  }
+
+  Future<void> saveApproach(WellnessApproach approach) {
+    return _upsert({'approach': approach.name});
+  }
+
+  Future<void> saveSex(UserSex sex) {
+    return _upsert({'sex': sex.name});
   }
 
   Future<void> _upsert(Map<String, dynamic> values) async {
@@ -56,6 +66,28 @@ class SettingsService {
         return ThemeMode.dark;
       default:
         return ThemeMode.system;
+    }
+  }
+
+  WellnessApproach _parseApproach(String? value) {
+    switch (value) {
+      case 'natural':
+        return WellnessApproach.natural;
+      case 'scientific':
+        return WellnessApproach.scientific;
+      default:
+        return WellnessApproach.balanced;
+    }
+  }
+
+  UserSex _parseSex(String? value) {
+    switch (value) {
+      case 'female':
+        return UserSex.female;
+      case 'male':
+        return UserSex.male;
+      default:
+        return UserSex.unspecified;
     }
   }
 

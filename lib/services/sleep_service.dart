@@ -23,6 +23,27 @@ class SleepService {
     );
   }
 
+  // Last 7 nights, most recent first — used to gauge circadian regularity
+  // (how consistent bedtime/wake time are), not a new tracked domain of its
+  // own, just a different read of the same sleep_logs data.
+  Future<List<SleepLog>> loadRecentSleepLogs() async {
+    final userId = _client.auth.currentUser!.id;
+
+    final rows = await _client
+        .from('sleep_logs')
+        .select('bedtime, wake_time')
+        .eq('user_id', userId)
+        .order('sleep_date', ascending: false)
+        .limit(7);
+
+    return rows
+        .map((row) => SleepLog(
+              bedtime: DateTime.parse(row['bedtime'] as String),
+              wakeTime: DateTime.parse(row['wake_time'] as String),
+            ))
+        .toList();
+  }
+
   Future<void> saveLastNight({
     required DateTime bedtime,
     required DateTime wakeTime,

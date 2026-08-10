@@ -4,15 +4,19 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../models/app_settings.dart';
+import '../models/cycle_info.dart';
 import '../models/fasting_log.dart';
 import '../models/focus_suggestion.dart';
 import '../models/routine_step.dart';
 import '../models/sleep_log.dart';
+import '../services/cycle_service.dart';
 import '../services/fasting_service.dart';
 import '../services/focus_service.dart';
 import '../services/health_service.dart';
 import '../services/plant_diversity_service.dart';
 import '../services/routine_progress_service.dart';
+import '../services/settings_service.dart';
 import '../services/skincare_photo_service.dart';
 import '../services/sleep_service.dart';
 import '../services/sound_link_service.dart';
@@ -40,6 +44,7 @@ class _TodayScreenState extends State<TodayScreen> {
 
   SleepLog? _sleepLog;
   bool _sleepLoading = true;
+  List<SleepLog> _recentSleepLogs = [];
 
   FastingLog _fastingLog = const FastingLog();
   bool _fastingLoading = true;
@@ -55,15 +60,55 @@ class _TodayScreenState extends State<TodayScreen> {
   String? _focusError;
   bool _focusLoading = false;
 
+  final _settingsService = SettingsService();
+  final _cycleService = CycleService();
+  UserSex _userSex = UserSex.unspecified;
+  CycleInfo? _cycleInfo;
+  bool _cycleLoading = true;
+
   @override
   void initState() {
     super.initState();
     _loadProgress();
     _loadPlants();
     _loadSleep();
+    _loadSleepRegularity();
     _loadFasting();
     _loadSound();
     _loadSkincare();
+    _loadCycleIfRelevant();
+  }
+
+  Future<void> _loadCycleIfRelevant() async {
+    try {
+      final settings = await _settingsService.loadSettings();
+      if (settings.sex != UserSex.female) {
+        if (mounted) setState(() => _cycleLoading = false);
+        return;
+      }
+      final info = await _cycleService.loadCycleInfo();
+      setState(() {
+        _userSex = settings.sex;
+        _cycleInfo = info;
+        _cycleLoading = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _cycleLoading = false);
+    }
+  }
+
+  Future<void> _logPeriodStartToday() async {
+    final previous = _cycleInfo;
+    try {
+      await _cycleService.logPeriodStart(DateTime.now());
+      final info = await _cycleService.loadCycleInfo();
+      if (!mounted) return;
+      setState(() => _cycleInfo = info);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _cycleInfo = previous);
+      _showError('Impossibile salvare, riprova');
+    }
   }
 
   Future<void> _loadProgress() async {
@@ -139,6 +184,27 @@ class _TodayScreenState extends State<TodayScreen> {
     } catch (_) {
       if (mounted) setState(() => _sleepLoading = false);
     }
+  }
+
+  Future<void> _loadSleepRegularity() async {
+    try {
+      final logs = await _sleepService.loadRecentSleepLogs();
+      if (mounted) setState(() => _recentSleepLogs = logs);
+    } catch (_) {
+      // Non-critical: the main sleep card still works without this.
+    }
+  }
+
+  // Range (max-min) of wake times across recent nights, in minutes —
+  // a simple, explainable proxy for circadian regularity. Needs at least
+  // 2 nights to say anything.
+  int? _wakeTimeVariabilityMinutes() {
+    if (_recentSleepLogs.length < 2) return null;
+    final minutesOfDay = _recentSleepLogs
+        .map((log) => log.wakeTime.hour * 60 + log.wakeTime.minute)
+        .toList();
+    return minutesOfDay.reduce((a, b) => a > b ? a : b) -
+        minutesOfDay.reduce((a, b) => a < b ? a : b);
   }
 
   Future<void> _saveSleep(DateTime bedtime, DateTime wakeTime) async {
@@ -430,6 +496,12 @@ class _TodayScreenState extends State<TodayScreen> {
           const SizedBox(height: 16),
           _buildFastingCard(),
           const SizedBox(height: 32),
+          if (_userSex == UserSex.female) ...[
+            _sectionTitle('Ciclo mestruale'),
+            const SizedBox(height: 16),
+            _buildCycleCard(),
+            const SizedBox(height: 32),
+          ],
           _sectionTitle('Prodotti skincare'),
           const SizedBox(height: 16),
           _buildSkincareCard(),
@@ -586,6 +658,19 @@ class _TodayScreenState extends State<TodayScreen> {
                     icon: const Icon(Icons.favorite_outline, size: 18),
                     label: const Text('Importa da Salute'),
                   ),
+                  if (_wakeTimeVariabilityMinutes() != null) ...[
+                    const Divider(height: 24),
+                    Text(
+                      'Ritmo circadiano',
+                      style: Theme.of(context).textTheme.labelLarge,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Sveglia variabile di ${_formatDuration(Duration(minutes: _wakeTimeVariabilityMinutes()!))} '
+                      'negli ultimi ${_recentSleepLogs.length} giorni tracciati.',
+                      style: TextStyle(color: Theme.of(context).colorScheme.outline),
+                    ),
+                  ],
                 ],
               ),
       ),
@@ -630,6 +715,51 @@ class _TodayScreenState extends State<TodayScreen> {
               ),
       ),
     );
+  }
+
+  Widget _buildCycleCard() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: _cycleLoading
+            ? const Center(child: CircularProgressIndicator())
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _cycleInfo == null
+                        ? 'Ciclo — non ancora tracciato'
+                        : 'Giorno ${_cycleInfo!.cycleDay} · fase ${_phaseLabel(_cycleInfo!.phase)}',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  if (_cycleInfo != null)
+                    Text(
+                      'Prossimo ciclo stimato: ${_formatDate(_cycleInfo!.predictedNextStart)} '
+                      '(ciclo medio ${_cycleInfo!.avgCycleLength}gg)',
+                      style: TextStyle(color: Theme.of(context).colorScheme.outline),
+                    ),
+                  const SizedBox(height: 12),
+                  OutlinedButton(
+                    onPressed: _logPeriodStartToday,
+                    child: const Text('Segna inizio ciclo oggi'),
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
+
+  String _phaseLabel(CyclePhase phase) {
+    switch (phase) {
+      case CyclePhase.menstrual:
+        return 'mestruale';
+      case CyclePhase.follicular:
+        return 'follicolare';
+      case CyclePhase.ovulation:
+        return 'ovulazione';
+      case CyclePhase.luteal:
+        return 'luteale';
+    }
   }
 
   Widget _buildSkincareCard() {
@@ -714,5 +844,9 @@ class _TodayScreenState extends State<TodayScreen> {
     final hours = duration.inHours;
     final minutes = duration.inMinutes.remainder(60);
     return '${hours}h ${minutes}m';
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}';
   }
 }

@@ -41,6 +41,12 @@ Regole:
   se il consiglio equivarrebbe a una diagnosi o prescrizione (EVITALO, riformula come
   wellness_recommendation o medical_information); "concerning_signal" se noti qualcosa
   nei dati che meriterebbe attenzione professionale.
+- Se ti viene indicata una preferenza dell'utente su rimedi naturali vs integratori mirati, tienine
+  conto quando il consiglio riguarda un rimedio/integratore specifico — non forzarla se il consiglio
+  del giorno non c'entra nulla con quell'ambito.
+- Se ti viene indicata la fase del ciclo mestruale, puoi usarla per contestualizzare energia/consigli
+  (es. più riposo in fase mestruale, più energia in fase follicolare/ovulazione) ma solo se pertinente
+  — non è un dato medico su cui basare diagnosi.
 - Non inventare dati che non ti sono stati dati.`;
 
 const RESPONSE_SCHEMA = {
@@ -382,8 +388,15 @@ Deno.serve(async (req) => {
     .toISOString()
     .slice(0, 10);
 
-  const [{ data: completions }, { data: plants }, { data: profile }, { data: latestDocument }] =
-    await Promise.all([
+  const [
+    { data: completions },
+    { data: plants },
+    { data: profile },
+    { data: latestDocument },
+    { data: cycleStarts },
+    { data: recentSleep },
+    { data: supplementIntake },
+  ] = await Promise.all([
       supabase
         .from("routine_completions")
         .select("step_id, completed_on")
@@ -396,7 +409,7 @@ Deno.serve(async (req) => {
         .gte("logged_on", sevenDaysAgo),
       supabase
         .from("profiles")
-        .select("narrative_summary")
+        .select("narrative_summary, approach, sex")
         .eq("user_id", user.id)
         .maybeSingle(),
       supabase
@@ -406,6 +419,23 @@ Deno.serve(async (req) => {
         .order("uploaded_at", { ascending: false })
         .limit(1)
         .maybeSingle(),
+      supabase
+        .from("menstrual_cycle_logs")
+        .select("period_start_date")
+        .eq("user_id", user.id)
+        .order("period_start_date", { ascending: false })
+        .limit(6),
+      supabase
+        .from("sleep_logs")
+        .select("wake_time")
+        .eq("user_id", user.id)
+        .order("sleep_date", { ascending: false })
+        .limit(7),
+      supabase
+        .from("supplement_intake_logs")
+        .select("taken_on, user_supplements(name, category)")
+        .eq("user_id", user.id)
+        .gte("taken_on", sevenDaysAgo),
     ]);
 
   const stepCounts = new Map<string, number>();
@@ -419,6 +449,73 @@ Deno.serve(async (req) => {
     ``,
     `Diversità vegetale: ${new Set((plants ?? []).map((p) => p.plant_name)).size} piante uniche negli ultimi 7 giorni (obiettivo 30/settimana).`,
   ];
+
+  const APPROACH_LABELS: Record<string, string> = {
+    natural: "preferisce un approccio naturale/plastic-free (es. zenzero, semi di chia, olio EVO, " +
+      "frutti rossi, golden milk) rispetto a integratori mirati da laboratorio",
+    scientific: "preferisce un approccio scientifico/da ricerca (es. integratori mirati come NAD+ " +
+      "o urolitina) rispetto a rimedi naturali generici",
+    balanced: "non ha una preferenza marcata tra rimedi naturali e integratori mirati da ricerca",
+  };
+  if (profile?.approach && APPROACH_LABELS[profile.approach]) {
+    digestLines.push(``, `Preferenza dell'utente: ${APPROACH_LABELS[profile.approach]}.`);
+  }
+
+  if (profile?.sex === "female" && cycleStarts && cycleStarts.length > 0) {
+    const starts = cycleStarts.map((row) => new Date(row.period_start_date));
+    const lastStart = starts[0];
+    const cycleDay = Math.floor((Date.now() - lastStart.getTime()) / (24 * 60 * 60 * 1000)) + 1;
+
+    let avgLength = 28;
+    if (starts.length >= 2) {
+      const diffs: number[] = [];
+      for (let i = 0; i < starts.length - 1; i++) {
+        diffs.push(Math.round((starts[i].getTime() - starts[i + 1].getTime()) / (24 * 60 * 60 * 1000)));
+      }
+      avgLength = Math.round(diffs.reduce((a, b) => a + b, 0) / diffs.length);
+    }
+
+    const ovulationDay = avgLength - 14;
+    let phase: string;
+    if (cycleDay <= 5) phase = "mestruale";
+    else if (cycleDay < ovulationDay - 1) phase = "follicolare";
+    else if (cycleDay <= ovulationDay + 1) phase = "ovulazione";
+    else phase = "luteale";
+
+    digestLines.push(``, `Ciclo mestruale: giorno ${cycleDay}, fase stimata ${phase} (ciclo medio ${avgLength} giorni).`);
+  }
+
+  if (recentSleep && recentSleep.length >= 2) {
+    const minutesOfDay = recentSleep.map((row) => {
+      const t = new Date(row.wake_time);
+      return t.getUTCHours() * 60 + t.getUTCMinutes();
+    });
+    const variability = Math.max(...minutesOfDay) - Math.min(...minutesOfDay);
+    const hours = Math.floor(variability / 60);
+    const minutes = variability % 60;
+    digestLines.push(
+      ``,
+      `Ritmo circadiano: orario di sveglia variabile di ${hours}h${minutes}m negli ultimi ${recentSleep.length} giorni tracciati.`,
+    );
+  }
+
+  if (supplementIntake && supplementIntake.length > 0) {
+    const nameCounts = new Map<string, number>();
+    for (const row of supplementIntake) {
+      // deno-lint-ignore no-explicit-any
+      const supplement = row.user_supplements as any;
+      if (!supplement) continue;
+      const label = `${supplement.name} (${supplement.category === "scientific" ? "scientifico" : "naturale"})`;
+      nameCounts.set(label, (nameCounts.get(label) ?? 0) + 1);
+    }
+    if (nameCounts.size > 0) {
+      digestLines.push(
+        ``,
+        `Integratori assunti negli ultimi 7 giorni:`,
+        ...[...nameCounts.entries()].map(([label, count]) => `- ${label}: ${count}/7`),
+      );
+    }
+  }
 
   if (profile?.narrative_summary) {
     digestLines.push(``, `Note aggiuntive sull'utente: ${profile.narrative_summary}`);

@@ -49,36 +49,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _setThemeMode(ThemeMode mode) async {
-    setState(() => _settings = AppSettings(
-          themeMode: mode,
-          language: _settings.language,
-          eveningRitualTime: _settings.eveningRitualTime,
-        ));
+    setState(() => _settings = _settings.copyWith(themeMode: mode));
     themeModeNotifier.value = mode;
-
-    try {
-      await _settingsService.saveThemeMode(mode);
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Impossibile salvare, riprova')));
-    }
+    await _save(() => _settingsService.saveThemeMode(mode));
   }
 
   Future<void> _setLanguage(String language) async {
-    setState(() => _settings = AppSettings(
-          themeMode: _settings.themeMode,
-          language: language,
-          eveningRitualTime: _settings.eveningRitualTime,
-        ));
+    setState(() => _settings = _settings.copyWith(language: language));
+    await _save(() => _settingsService.saveLanguage(language));
+  }
 
-    try {
-      await _settingsService.saveLanguage(language);
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Impossibile salvare, riprova')));
-    }
+  Future<void> _setApproach(WellnessApproach approach) async {
+    setState(() => _settings = _settings.copyWith(approach: approach));
+    await _save(() => _settingsService.saveApproach(approach));
+  }
+
+  Future<void> _setSex(UserSex sex) async {
+    setState(() => _settings = _settings.copyWith(sex: sex));
+    await _save(() => _settingsService.saveSex(sex));
   }
 
   Future<void> _pickEveningRitualTime() async {
@@ -89,14 +77,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
     if (picked == null) return;
 
-    setState(() => _settings = AppSettings(
-          themeMode: _settings.themeMode,
-          language: _settings.language,
-          eveningRitualTime: picked,
-        ));
+    setState(() => _settings = _settings.copyWith(eveningRitualTime: picked));
+    await _save(() => _settingsService.saveEveningRitualTime(picked));
+  }
 
+  Future<void> _save(Future<void> Function() action) async {
     try {
-      await _settingsService.saveEveningRitualTime(picked);
+      await action();
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context)
@@ -186,6 +173,39 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ],
             selected: {_settings.themeMode},
             onSelectionChanged: (selection) => _setThemeMode(selection.first),
+          ),
+          const SizedBox(height: 24),
+          Text('Approccio al benessere', style: Theme.of(context).textTheme.titleMedium),
+          const Text(
+            'Pesa i consigli dell\'AI: più naturale (es. zenzero, EVOO, golden milk) '
+            'o più mirato/da ricerca (es. integratori specifici come NAD+).',
+            style: TextStyle(fontSize: 12, color: Colors.grey),
+          ),
+          const SizedBox(height: 8),
+          SegmentedButton<WellnessApproach>(
+            segments: const [
+              ButtonSegment(value: WellnessApproach.natural, label: Text('Naturale')),
+              ButtonSegment(value: WellnessApproach.balanced, label: Text('Bilanciato')),
+              ButtonSegment(value: WellnessApproach.scientific, label: Text('Scientifico')),
+            ],
+            selected: {_settings.approach},
+            onSelectionChanged: (selection) => _setApproach(selection.first),
+          ),
+          const SizedBox(height: 24),
+          Text('Sesso', style: Theme.of(context).textTheme.titleMedium),
+          const Text(
+            'Opzionale — decide solo se mostrare il tracking del ciclo mestruale in Oggi.',
+            style: TextStyle(fontSize: 12, color: Colors.grey),
+          ),
+          const SizedBox(height: 8),
+          SegmentedButton<UserSex>(
+            segments: const [
+              ButtonSegment(value: UserSex.unspecified, label: Text('Non specificato')),
+              ButtonSegment(value: UserSex.female, label: Text('Donna')),
+              ButtonSegment(value: UserSex.male, label: Text('Uomo')),
+            ],
+            selected: {_settings.sex},
+            onSelectionChanged: (selection) => _setSex(selection.first),
           ),
           const SizedBox(height: 24),
           Text('Lingua', style: Theme.of(context).textTheme.titleMedium),

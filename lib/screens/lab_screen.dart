@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../models/mix_recipe.dart';
-import '../services/lab_service.dart';
+import '../models/supplement.dart';
+import '../services/supplement_service.dart';
 
 class LabScreen extends StatefulWidget {
   const LabScreen({super.key});
@@ -11,115 +11,130 @@ class LabScreen extends StatefulWidget {
 }
 
 class _LabScreenState extends State<LabScreen> {
-  final _labService = LabService();
+  final _supplementService = SupplementService();
 
-  Set<String> _ingredients = {};
-  bool _ingredientsLoading = true;
-
-  List<MixDiaryEntry> _diary = [];
-  bool _diaryLoading = true;
+  List<Supplement> _supplements = [];
+  Set<String> _takenToday = {};
+  bool _loading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadIngredients();
-    _loadDiary();
+    _load();
   }
 
-  Future<void> _loadIngredients() async {
+  Future<void> _load() async {
     try {
-      final ingredients = await _labService.loadIngredients();
+      final results = await Future.wait([
+        _supplementService.loadSupplements(),
+        _supplementService.loadTodayIntake(),
+      ]);
       setState(() {
-        _ingredients = ingredients;
-        _ingredientsLoading = false;
+        _supplements = results[0] as List<Supplement>;
+        _takenToday = results[1] as Set<String>;
+        _loading = false;
       });
     } catch (_) {
-      if (mounted) setState(() => _ingredientsLoading = false);
+      if (mounted) setState(() => _loading = false);
     }
   }
 
-  Future<void> _loadDiary() async {
+  Future<void> _toggleTaken(Supplement supplement, bool taken) async {
+    setState(() {
+      if (taken) {
+        _takenToday.add(supplement.id);
+      } else {
+        _takenToday.remove(supplement.id);
+      }
+    });
+
     try {
-      final diary = await _labService.loadRecentDiary();
+      await _supplementService.setIntakeToday(supplement.id, taken);
+    } catch (_) {
+      if (!mounted) return;
       setState(() {
-        _diary = diary;
-        _diaryLoading = false;
+        if (taken) {
+          _takenToday.remove(supplement.id);
+        } else {
+          _takenToday.add(supplement.id);
+        }
       });
-    } catch (_) {
-      if (mounted) setState(() => _diaryLoading = false);
-    }
-  }
-
-  Future<void> _addIngredient(String name) async {
-    final trimmed = name.trim().toLowerCase();
-    if (trimmed.isEmpty || _ingredients.contains(trimmed)) return;
-
-    setState(() => _ingredients = {..._ingredients, trimmed});
-
-    try {
-      await _labService.addIngredient(trimmed);
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _ingredients = _ingredients.where((i) => i != trimmed).toSet());
-      _showError('Impossibile salvare, riprova');
-    }
-  }
-
-  Future<void> _removeIngredient(String name) async {
-    setState(() => _ingredients = _ingredients.where((i) => i != name).toSet());
-
-    try {
-      await _labService.removeIngredient(name);
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _ingredients = {..._ingredients, name});
-      _showError('Impossibile rimuovere, riprova');
-    }
-  }
-
-  Future<void> _logMixMade(String mixName) async {
-    try {
-      await _labService.logMixMade(mixName);
-      await _loadDiary();
-      if (!mounted) return;
       ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Aggiunto al diario: $mixName')));
-    } catch (_) {
-      if (!mounted) return;
-      _showError('Impossibile salvare, riprova');
+          .showSnackBar(const SnackBar(content: Text('Impossibile salvare, riprova')));
     }
   }
 
-  void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  Future<void> _removeSupplement(Supplement supplement) async {
+    final previous = _supplements;
+    setState(() => _supplements = _supplements.where((s) => s.id != supplement.id).toList());
+
+    try {
+      await _supplementService.removeSupplement(supplement.id);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _supplements = previous);
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Impossibile eliminare, riprova')));
+    }
   }
 
-  Future<void> _showAddIngredientDialog() async {
+  Future<void> _showAddSupplementDialog() async {
     final controller = TextEditingController();
-    final name = await showDialog<String>(
+    var category = SupplementCategory.natural;
+
+    final result = await showDialog<(String, SupplementCategory)>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Aggiungi un ingrediente'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(hintText: 'Es. curcuma'),
-          onSubmitted: (value) => Navigator.of(context).pop(value),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Aggiungi integratore'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextField(
+                controller: controller,
+                autofocus: true,
+                decoration: const InputDecoration(hintText: 'Es. vitamina D, NAD+, zenzero...'),
+              ),
+              const SizedBox(height: 16),
+              SegmentedButton<SupplementCategory>(
+                segments: const [
+                  ButtonSegment(value: SupplementCategory.natural, label: Text('Naturale')),
+                  ButtonSegment(value: SupplementCategory.scientific, label: Text('Scientifico')),
+                ],
+                selected: {category},
+                onSelectionChanged: (selection) =>
+                    setDialogState(() => category = selection.first),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Annulla'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop((controller.text, category)),
+              child: const Text('Aggiungi'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Annulla'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(controller.text),
-            child: const Text('Aggiungi'),
-          ),
-        ],
       ),
     );
 
-    if (name != null) _addIngredient(name);
+    if (result == null) return;
+    final (name, chosenCategory) = result;
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) return;
+
+    try {
+      await _supplementService.addSupplement(trimmed, chosenCategory);
+      await _load();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Impossibile aggiungere, riprova')));
+    }
   }
 
   @override
@@ -128,136 +143,51 @@ class _LabScreenState extends State<LabScreen> {
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          Text('Ingredienti', style: Theme.of(context).textTheme.headlineSmall),
+          Text('Integratori', style: Theme.of(context).textTheme.headlineSmall),
+          const Text(
+            'Naturali e mirati/da ricerca, monitorati nel tempo — non un consiglio medico.',
+            style: TextStyle(color: Colors.grey),
+          ),
           const SizedBox(height: 16),
-          _buildIngredientsCard(),
-          const SizedBox(height: 32),
-          Text('Mix', style: Theme.of(context).textTheme.headlineSmall),
-          const SizedBox(height: 16),
-          ...allMixRecipes.map(_buildMixCard),
-          const SizedBox(height: 32),
-          Text('Diario', style: Theme.of(context).textTheme.headlineSmall),
-          const SizedBox(height: 16),
-          _buildDiaryCard(),
+          if (_loading)
+            const Center(child: CircularProgressIndicator())
+          else if (_supplements.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 16),
+              child: Text(
+                'Nessun integratore ancora. Aggiungine uno con il pulsante sotto.',
+                style: TextStyle(color: Colors.grey),
+              ),
+            )
+          else
+            ..._supplements.map((supplement) {
+              final taken = _takenToday.contains(supplement.id);
+              return Card(
+                child: CheckboxListTile(
+                  value: taken,
+                  onChanged: (value) => _toggleTaken(supplement, value ?? false),
+                  controlAffinity: ListTileControlAffinity.leading,
+                  title: Text(supplement.name),
+                  subtitle: Text(
+                    supplement.category == SupplementCategory.natural
+                        ? 'Naturale'
+                        : 'Scientifico',
+                  ),
+                  secondary: IconButton(
+                    icon: const Icon(Icons.delete_outline),
+                    onPressed: () => _removeSupplement(supplement),
+                  ),
+                ),
+              );
+            }),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: _showAddSupplementDialog,
+            icon: const Icon(Icons.add),
+            label: const Text('Aggiungi integratore'),
+          ),
         ],
       ),
     );
-  }
-
-  Widget _buildIngredientsCard() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: _ingredientsLoading
-            ? const Center(child: CircularProgressIndicator())
-            : Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('I tuoi ingredienti'),
-                      IconButton(
-                        icon: const Icon(Icons.add_circle_outline),
-                        onPressed: _showAddIngredientDialog,
-                      ),
-                    ],
-                  ),
-                  if (_ingredients.isEmpty)
-                    const Text(
-                      'Aggiungi i tuoi ingredienti per vedere quali mix puoi preparare subito.',
-                      style: TextStyle(color: Colors.grey),
-                    )
-                  else
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: _ingredients
-                          .map((i) => Chip(
-                                label: Text(i),
-                                onDeleted: () => _removeIngredient(i),
-                              ))
-                          .toList(),
-                    ),
-                ],
-              ),
-      ),
-    );
-  }
-
-  Widget _buildMixCard(MixRecipe mix) {
-    final missing = mix.ingredients.where((i) => !_ingredients.contains(i)).toList();
-    final ready = missing.isEmpty;
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(mix.name, style: Theme.of(context).textTheme.titleMedium),
-                ),
-                if (ready)
-                  const Chip(
-                    label: Text('Pronto'),
-                    visualDensity: VisualDensity.compact,
-                  ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Text(mix.description, style: Theme.of(context).textTheme.bodySmall),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: mix.ingredients
-                  .map((i) => Chip(
-                        label: Text(i),
-                        visualDensity: VisualDensity.compact,
-                        backgroundColor: _ingredients.contains(i)
-                            ? Theme.of(context).colorScheme.secondaryContainer
-                            : null,
-                      ))
-                  .toList(),
-            ),
-            const SizedBox(height: 8),
-            OutlinedButton(
-              onPressed: () => _logMixMade(mix.name),
-              child: const Text('Ho preparato questo'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDiaryCard() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: _diaryLoading
-            ? const Center(child: CircularProgressIndicator())
-            : _diary.isEmpty
-                ? const Text('Nessuna voce nel diario ancora.', style: TextStyle(color: Colors.grey))
-                : Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: _diary
-                        .map((entry) => Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 4),
-                              child: Text(
-                                '${entry.mixName} — ${_formatDate(entry.madeAt)}',
-                              ),
-                            ))
-                        .toList(),
-                  ),
-      ),
-    );
-  }
-
-  String _formatDate(DateTime date) {
-    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
   }
 }
