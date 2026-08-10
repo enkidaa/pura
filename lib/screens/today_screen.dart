@@ -65,6 +65,7 @@ class _TodayScreenState extends State<TodayScreen> {
   UserSex _userSex = UserSex.unspecified;
   CycleInfo? _cycleInfo;
   bool _cycleLoading = true;
+  bool _fastingEnabled = false;
 
   @override
   void initState() {
@@ -82,6 +83,8 @@ class _TodayScreenState extends State<TodayScreen> {
   Future<void> _loadCycleIfRelevant() async {
     try {
       final settings = await _settingsService.loadSettings();
+      setState(() => _fastingEnabled = settings.fastingEnabled);
+
       if (settings.sex != UserSex.female) {
         if (mounted) setState(() => _cycleLoading = false);
         return;
@@ -498,6 +501,24 @@ class _TodayScreenState extends State<TodayScreen> {
               );
             }),
           const SizedBox(height: 32),
+          _sectionTitle('Routine serale'),
+          const SizedBox(height: 16),
+          if (_routineLoading)
+            const Center(child: CircularProgressIndicator())
+          else
+            ...eveningRoutineSteps.map((step) {
+              final isCompleted = _completedStepIds.contains(step.id);
+              return Card(
+                child: CheckboxListTile(
+                  value: isCompleted,
+                  onChanged: (value) => _toggleStep(step, value ?? false),
+                  title: Text(step.title),
+                  subtitle: Text('${step.durationMinutes} min'),
+                  controlAffinity: ListTileControlAffinity.leading,
+                ),
+              );
+            }),
+          const SizedBox(height: 32),
           _sectionTitle('Diversità vegetale'),
           const SizedBox(height: 16),
           _buildPlantCard(),
@@ -506,10 +527,12 @@ class _TodayScreenState extends State<TodayScreen> {
           const SizedBox(height: 16),
           _buildSleepCard(),
           const SizedBox(height: 32),
-          _sectionTitle('Digiuno'),
-          const SizedBox(height: 16),
-          _buildFastingCard(),
-          const SizedBox(height: 32),
+          if (_fastingEnabled) ...[
+            _sectionTitle('Digiuno'),
+            const SizedBox(height: 16),
+            _buildFastingCard(),
+            const SizedBox(height: 32),
+          ],
           if (_userSex == UserSex.female) ...[
             _sectionTitle('Ciclo mestruale'),
             const SizedBox(height: 16),

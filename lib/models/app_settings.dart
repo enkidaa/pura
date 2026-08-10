@@ -11,6 +11,7 @@ class AppSettings {
     required this.eveningRitualTime,
     required this.approach,
     required this.sex,
+    required this.fastingEnabled,
   });
 
   final ThemeMode themeMode;
@@ -18,6 +19,7 @@ class AppSettings {
   final TimeOfDay? eveningRitualTime;
   final WellnessApproach approach;
   final UserSex sex;
+  final bool fastingEnabled;
 
   static const defaults = AppSettings(
     themeMode: ThemeMode.system,
@@ -25,6 +27,7 @@ class AppSettings {
     eveningRitualTime: null,
     approach: WellnessApproach.balanced,
     sex: UserSex.unspecified,
+    fastingEnabled: false,
   );
 
   AppSettings copyWith({
@@ -33,6 +36,7 @@ class AppSettings {
     TimeOfDay? eveningRitualTime,
     WellnessApproach? approach,
     UserSex? sex,
+    bool? fastingEnabled,
   }) {
     return AppSettings(
       themeMode: themeMode ?? this.themeMode,
@@ -40,6 +44,7 @@ class AppSettings {
       eveningRitualTime: eveningRitualTime ?? this.eveningRitualTime,
       approach: approach ?? this.approach,
       sex: sex ?? this.sex,
+      fastingEnabled: fastingEnabled ?? this.fastingEnabled,
     );
   }
 }

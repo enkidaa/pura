@@ -69,6 +69,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     await _save(() => _settingsService.saveSex(sex));
   }
 
+  Future<void> _setFastingEnabled(bool value) async {
+    setState(() => _settings = _settings.copyWith(fastingEnabled: value));
+    await _save(() => _settingsService.saveFastingEnabled(value));
+  }
+
   Future<void> _pickEveningRitualTime() async {
     final picked = await showTimePicker(
       context: context,
@@ -208,6 +213,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
             onSelectionChanged: (selection) => _setSex(selection.first),
           ),
           const SizedBox(height: 24),
+          Text('Digiuno', style: Theme.of(context).textTheme.titleMedium),
+          const Text(
+            'Opzionale — mostra il tracking del digiuno in Oggi solo se attivato.',
+            style: TextStyle(fontSize: 12, color: Colors.grey),
+          ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Traccia digiuno'),
+            value: _settings.fastingEnabled,
+            onChanged: _setFastingEnabled,
+          ),
+          const SizedBox(height: 24),
           Text('Lingua', style: Theme.of(context).textTheme.titleMedium),
           const Text(
             'Solo salvata per ora — l\'app resta in italiano, non c\'è ancora traduzione.',
@@ -225,7 +242,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: 24),
           Text('Rituale serale', style: Theme.of(context).textTheme.titleMedium),
           const Text(
-            'Salvato per ora — non ancora usato (routine serale non esiste ancora).',
+            'Suggerisce quando iniziare la routine serale in Oggi.',
             style: TextStyle(fontSize: 12, color: Colors.grey),
           ),
           const SizedBox(height: 8),

@@ -495,7 +495,7 @@ Deno.serve(async (req) => {
   }
 
   const digestLines = [
-    `Routine mattutina (ultimi 7 giorni, su 7 possibili):`,
+    `Routine (mattutina e serale, ultimi 7 giorni, su 7 possibili):`,
     ...[...stepCounts.entries()].map(([step, count]) => `- ${step}: ${count}/7`),
     ``,
     `Diversità vegetale: ${new Set((plants ?? []).map((p) => p.plant_name)).size} piante uniche negli ultimi 7 giorni (obiettivo 30/settimana).`,
