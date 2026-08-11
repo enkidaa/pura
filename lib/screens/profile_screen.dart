@@ -10,6 +10,8 @@ import '../models/user_document.dart';
 import '../services/auth_service.dart';
 import '../services/document_service.dart';
 import '../services/settings_service.dart';
+import '../widgets/app_card.dart';
+import '../widgets/page_header.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -163,12 +165,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
 
     return SafeArea(
+      bottom: false,
       child: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
         children: [
-          Text(email, style: Theme.of(context).textTheme.titleMedium),
+          PageHeader(
+            eyebrow: 'Tuo, solo se vuoi',
+            title: 'Profilo',
+            subtitle: 'Tutto qui è opzionale. Più segnali = suggerimenti più rilevanti — ma non devi nulla.\n$email',
+          ),
           const SizedBox(height: 24),
-          Text('Aspetto', style: Theme.of(context).textTheme.titleMedium),
+          Text('ASPETTO', style: Theme.of(context).textTheme.labelMedium),
           const SizedBox(height: 8),
           SegmentedButton<ThemeMode>(
             segments: const [
@@ -180,11 +187,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
             onSelectionChanged: (selection) => _setThemeMode(selection.first),
           ),
           const SizedBox(height: 24),
-          Text('Approccio al benessere', style: Theme.of(context).textTheme.titleMedium),
-          const Text(
+          Text('APPROCCIO AL BENESSERE', style: Theme.of(context).textTheme.labelMedium),
+          Text(
             'Pesa i consigli dell\'AI: più naturale (es. zenzero, EVOO, golden milk) '
             'o più mirato/da ricerca (es. integratori specifici come NAD+).',
-            style: TextStyle(fontSize: 12, color: Colors.grey),
+            style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 8),
           SegmentedButton<WellnessApproach>(
@@ -197,10 +204,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
             onSelectionChanged: (selection) => _setApproach(selection.first),
           ),
           const SizedBox(height: 24),
-          Text('Sesso', style: Theme.of(context).textTheme.titleMedium),
-          const Text(
+          Text('SESSO', style: Theme.of(context).textTheme.labelMedium),
+          Text(
             'Opzionale — decide solo se mostrare il tracking del ciclo mestruale in Oggi.',
-            style: TextStyle(fontSize: 12, color: Colors.grey),
+            style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 8),
           SegmentedButton<UserSex>(
@@ -213,10 +220,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
             onSelectionChanged: (selection) => _setSex(selection.first),
           ),
           const SizedBox(height: 24),
-          Text('Digiuno', style: Theme.of(context).textTheme.titleMedium),
-          const Text(
+          Text('DIGIUNO', style: Theme.of(context).textTheme.labelMedium),
+          Text(
             'Opzionale — mostra il tracking del digiuno in Oggi solo se attivato.',
-            style: TextStyle(fontSize: 12, color: Colors.grey),
+            style: Theme.of(context).textTheme.bodySmall,
           ),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
@@ -225,10 +232,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
             onChanged: _setFastingEnabled,
           ),
           const SizedBox(height: 24),
-          Text('Lingua', style: Theme.of(context).textTheme.titleMedium),
-          const Text(
+          Text('LINGUA', style: Theme.of(context).textTheme.labelMedium),
+          Text(
             'Solo salvata per ora — l\'app resta in italiano, non c\'è ancora traduzione.',
-            style: TextStyle(fontSize: 12, color: Colors.grey),
+            style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 8),
           SegmentedButton<String>(
@@ -240,10 +247,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
             onSelectionChanged: (selection) => _setLanguage(selection.first),
           ),
           const SizedBox(height: 24),
-          Text('Rituale serale', style: Theme.of(context).textTheme.titleMedium),
-          const Text(
+          Text('RITUALE SERALE', style: Theme.of(context).textTheme.labelMedium),
+          Text(
             'Suggerisce quando iniziare la routine serale in Oggi.',
-            style: TextStyle(fontSize: 12, color: Colors.grey),
+            style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 8),
           OutlinedButton(
@@ -255,17 +262,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
           const SizedBox(height: 24),
-          Text('Documenti per l\'AI', style: Theme.of(context).textTheme.titleMedium),
-          const Text(
+          Text('DOCUMENTI PER L\'AI', style: Theme.of(context).textTheme.labelMedium),
+          Text(
             'PDF o foto (es. referto nutrizionale) che il Focus del giorno può leggere.',
-            style: TextStyle(fontSize: 12, color: Colors.grey),
+            style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 8),
           _documentsLoading
               ? const Center(child: CircularProgressIndicator())
               : Column(
                   children: _documents
-                      .map((doc) => Card(
+                      .map((doc) => AppCard(padding: EdgeInsets.zero, 
                             child: ListTile(
                               leading: const Icon(Icons.description_outlined),
                               title: Text(doc.label),

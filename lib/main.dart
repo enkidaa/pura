@@ -24,17 +24,8 @@ class PuraApp extends StatelessWidget {
       builder: (context, themeMode, _) {
         return MaterialApp(
           title: 'Pura',
-          theme: ThemeData(
-            colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
-            useMaterial3: true,
-          ),
-          darkTheme: ThemeData(
-            colorScheme: ColorScheme.fromSeed(
-              seedColor: Colors.teal,
-              brightness: Brightness.dark,
-            ),
-            useMaterial3: true,
-          ),
+          theme: AppTheme.light(),
+          darkTheme: AppTheme.dark(),
           themeMode: themeMode,
           home: const AuthGate(),
         );

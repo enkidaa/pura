@@ -20,6 +20,8 @@ import '../services/settings_service.dart';
 import '../services/skincare_photo_service.dart';
 import '../services/sleep_service.dart';
 import '../services/sound_link_service.dart';
+import '../widgets/app_card.dart';
+import '../widgets/page_header.dart';
 
 class TodayScreen extends StatefulWidget {
   const TodayScreen({super.key});
@@ -473,12 +475,23 @@ class _TodayScreenState extends State<TodayScreen> {
     if (url != null) _saveSound(url);
   }
 
+  String _greeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 6) return 'Buonanotte';
+    if (hour < 12) return 'Buongiorno';
+    if (hour < 18) return 'Buon pomeriggio';
+    return 'Buonasera';
+  }
+
   @override
   Widget build(BuildContext context) {
     return SafeArea(
+      bottom: false,
       child: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
         children: [
+          PageHeader(eyebrow: 'Pura · Oggi', title: _greeting()),
+          const SizedBox(height: 24),
           _sectionTitle('Focus del giorno'),
           const SizedBox(height: 16),
           _buildFocusCard(),
@@ -490,7 +503,7 @@ class _TodayScreenState extends State<TodayScreen> {
           else
             ...morningRoutineSteps.map((step) {
               final isCompleted = _completedStepIds.contains(step.id);
-              return Card(
+              return AppCard(padding: EdgeInsets.zero, 
                 child: CheckboxListTile(
                   value: isCompleted,
                   onChanged: (value) => _toggleStep(step, value ?? false),
@@ -508,7 +521,7 @@ class _TodayScreenState extends State<TodayScreen> {
           else
             ...eveningRoutineSteps.map((step) {
               final isCompleted = _completedStepIds.contains(step.id);
-              return Card(
+              return AppCard(padding: EdgeInsets.zero, 
                 child: CheckboxListTile(
                   value: isCompleted,
                   onChanged: (value) => _toggleStep(step, value ?? false),
@@ -552,34 +565,40 @@ class _TodayScreenState extends State<TodayScreen> {
   }
 
   Widget _sectionTitle(String text) {
-    return Text(text, style: Theme.of(context).textTheme.headlineSmall);
+    return Text(text.toUpperCase(), style: Theme.of(context).textTheme.labelMedium);
   }
 
   Widget _buildFocusCard() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (_focusLoading)
-              const Center(child: CircularProgressIndicator())
-            else if (_focusError != null)
-              Text(
-                _focusError!,
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
-              )
-            else if (_focusSuggestion != null)
-              _buildFocusSuggestion(_focusSuggestion!)
-            else
-              const Text('Ancora nessun consiglio per oggi.'),
-            const SizedBox(height: 12),
-            FilledButton(
-              onPressed: _focusLoading ? null : _generateFocus,
-              child: const Text('Genera consiglio'),
-            ),
-          ],
-        ),
+    return AppCard(
+      padding: const EdgeInsets.all(20),
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          Theme.of(context).colorScheme.secondary.withValues(alpha: 0.30),
+          Theme.of(context).colorScheme.primary.withValues(alpha: 0.16),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (_focusLoading)
+            const Center(child: CircularProgressIndicator())
+          else if (_focusError != null)
+            Text(
+              _focusError!,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            )
+          else if (_focusSuggestion != null)
+            _buildFocusSuggestion(_focusSuggestion!)
+          else
+            const Text('Ancora nessun consiglio per oggi.'),
+          const SizedBox(height: 12),
+          FilledButton(
+            onPressed: _focusLoading ? null : _generateFocus,
+            child: const Text('Genera consiglio'),
+          ),
+        ],
       ),
     );
   }
@@ -622,7 +641,7 @@ class _TodayScreenState extends State<TodayScreen> {
   }
 
   Widget _buildPlantCard() {
-    return Card(
+    return AppCard(padding: EdgeInsets.zero, 
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: _plantsLoading
@@ -659,7 +678,7 @@ class _TodayScreenState extends State<TodayScreen> {
   }
 
   Widget _buildSleepCard() {
-    return Card(
+    return AppCard(padding: EdgeInsets.zero, 
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: _sleepLoading
@@ -715,7 +734,7 @@ class _TodayScreenState extends State<TodayScreen> {
   }
 
   Widget _buildFastingCard() {
-    return Card(
+    return AppCard(padding: EdgeInsets.zero, 
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: _fastingLoading
@@ -755,7 +774,7 @@ class _TodayScreenState extends State<TodayScreen> {
   }
 
   Widget _buildCycleCard() {
-    return Card(
+    return AppCard(padding: EdgeInsets.zero, 
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: _cycleLoading
@@ -800,7 +819,7 @@ class _TodayScreenState extends State<TodayScreen> {
   }
 
   Widget _buildSkincareCard() {
-    return Card(
+    return AppCard(padding: EdgeInsets.zero, 
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: _skincareLoading
@@ -844,7 +863,7 @@ class _TodayScreenState extends State<TodayScreen> {
   }
 
   Widget _buildSoundCard() {
-    return Card(
+    return AppCard(padding: EdgeInsets.zero, 
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: _soundLoading

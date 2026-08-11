@@ -1,38 +1,52 @@
 import 'package:flutter/material.dart';
 
+import '../widgets/app_card.dart';
+import '../widgets/page_header.dart';
+
 class DiscoverScreen extends StatelessWidget {
   const DiscoverScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return SafeArea(
+      bottom: false,
       child: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
         children: [
-          Text('Ingrediente del mese', style: Theme.of(context).textTheme.headlineSmall),
-          const SizedBox(height: 16),
-          const Card(
-            child: Padding(
-              padding: EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Pepe nero × Curcumina',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    "Insieme alla curcumina, la piperina aumenta la biodisponibilità di circa "
-                    "il 2000%. Lo stesso cucchiaino di curcuma diventa una molecola "
-                    "significativamente diversa. Vanno sempre abbinati.",
-                  ),
-                ],
-              ),
+          const PageHeader(eyebrow: 'Questo mese', title: 'Scopri'),
+          const SizedBox(height: 24),
+          AppCard(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Theme.of(context).colorScheme.secondary.withValues(alpha: 0.35),
+                Theme.of(context).colorScheme.primary.withValues(alpha: 0.18),
+              ],
+            ),
+            padding: const EdgeInsets.all(20),
+            margin: EdgeInsets.zero,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('INGREDIENTE DEL MESE', style: Theme.of(context).textTheme.labelSmall),
+                const SizedBox(height: 8),
+                Text(
+                  'Pepe nero × Curcumina',
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  "Insieme alla curcumina, la piperina aumenta la biodisponibilità di circa "
+                  "il 2000%. Lo stesso cucchiaino di curcuma diventa una molecola "
+                  "significativamente diversa. Vanno sempre abbinati.",
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 32),
-          Text('Sfide da provare', style: Theme.of(context).textTheme.headlineSmall),
+          Text('SFIDE DA PROVARE', style: Theme.of(context).textTheme.labelMedium),
           const SizedBox(height: 16),
           const _ChallengeCard(
             title: 'Sole negli occhi — 7 mattine',
@@ -53,7 +67,7 @@ class DiscoverScreen extends StatelessWidget {
                 'Termina ogni doccia con acqua fredda. Osserva come cambiano umore ed energia dal 7° giorno.',
           ),
           const SizedBox(height: 32),
-          Text('Protocolli stagionali', style: Theme.of(context).textTheme.headlineSmall),
+          Text('PROTOCOLLI STAGIONALI', style: Theme.of(context).textTheme.labelMedium),
           const SizedBox(height: 16),
           const _ProtocolCard(
             title: 'Detox di primavera',
@@ -90,7 +104,7 @@ class _ChallengeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    return AppCard(padding: EdgeInsets.zero, 
       child: ListTile(
         title: Text(title),
         subtitle: Column(
@@ -115,7 +129,7 @@ class _ProtocolCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    return AppCard(padding: EdgeInsets.zero, 
       child: ListTile(
         title: Text(title),
         subtitle: Text(description),

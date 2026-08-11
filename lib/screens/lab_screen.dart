@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../models/supplement.dart';
 import '../services/supplement_service.dart';
+import '../widgets/app_card.dart';
+import '../widgets/page_header.dart';
 
 class LabScreen extends StatefulWidget {
   const LabScreen({super.key});
@@ -140,29 +142,30 @@ class _LabScreenState extends State<LabScreen> {
   @override
   Widget build(BuildContext context) {
     return SafeArea(
+      bottom: false,
       child: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
         children: [
-          Text('Integratori', style: Theme.of(context).textTheme.headlineSmall),
-          const Text(
-            'Naturali e mirati/da ricerca, monitorati nel tempo — non un consiglio medico.',
-            style: TextStyle(color: Colors.grey),
+          const PageHeader(
+            eyebrow: 'Spazio di lavoro',
+            title: 'Integratori',
+            subtitle: 'Naturali e mirati/da ricerca, monitorati nel tempo — non un consiglio medico.',
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 24),
           if (_loading)
             const Center(child: CircularProgressIndicator())
           else if (_supplements.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 16),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16),
               child: Text(
                 'Nessun integratore ancora. Aggiungine uno con il pulsante sotto.',
-                style: TextStyle(color: Colors.grey),
+                style: TextStyle(color: Theme.of(context).colorScheme.outline),
               ),
             )
           else
             ..._supplements.map((supplement) {
               final taken = _takenToday.contains(supplement.id);
-              return Card(
+              return AppCard(padding: EdgeInsets.zero, 
                 child: CheckboxListTile(
                   value: taken,
                   onChanged: (value) => _toggleTaken(supplement, value ?? false),
