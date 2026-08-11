@@ -2,10 +2,14 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
+import '../app_theme.dart';
+
 /// Frosted-glass panel — real backdrop blur + translucent tint + a hairline
-/// light-catching edge, in the spirit of iOS's Liquid Glass rather than a
-/// flat Material card. Needs something with color behind it (see
-/// AmbientBackground) or the blur has nothing to refract.
+/// light-catching edge, in the spirit of iOS's Liquid Glass. Reads its
+/// alpha/shadow from CircadianTokens instead of hardcoding them, so it
+/// rides the same wake-to-night curve as the rest of the UI. Needs
+/// something with color behind it (see AmbientBackground) or the blur has
+/// nothing to refract.
 class AppCard extends StatelessWidget {
   const AppCard({
     super.key,
@@ -24,8 +28,8 @@ class AppCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final surface = Theme.of(context).colorScheme.surface;
+    final scheme = Theme.of(context).colorScheme;
+    final tokens = Theme.of(context).extension<CircadianTokens>()!;
     const radius = 26.0;
 
     return Container(
@@ -34,14 +38,9 @@ class AppCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(radius),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.55 : 0.05),
-            blurRadius: 3,
-            offset: const Offset(0, 1),
-          ),
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.07),
-            blurRadius: 28,
-            offset: const Offset(0, 12),
+            color: tokens.shadowColor,
+            blurRadius: tokens.shadowBlur,
+            offset: Offset(0, tokens.shadowOffsetY),
           ),
         ],
       ),
@@ -52,13 +51,11 @@ class AppCard extends StatelessWidget {
           child: Container(
             padding: padding,
             decoration: BoxDecoration(
-              color: gradient == null
-                  ? surface.withValues(alpha: isDark ? 0.42 : 0.58)
-                  : null,
+              color: gradient == null ? scheme.surface.withValues(alpha: tokens.surfaceAlpha) : null,
               gradient: gradient,
               borderRadius: BorderRadius.circular(radius),
               border: Border.all(
-                color: Colors.white.withValues(alpha: isDark ? 0.06 : 0.55),
+                color: scheme.outlineVariant.withValues(alpha: tokens.borderAlpha),
                 width: 1,
               ),
             ),

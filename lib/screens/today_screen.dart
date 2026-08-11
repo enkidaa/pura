@@ -2,8 +2,8 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:url_launcher/url_launcher.dart';
 
+import '../app_theme.dart';
 import '../models/app_settings.dart';
 import '../models/cycle_info.dart';
 import '../models/fasting_log.dart';
@@ -22,6 +22,7 @@ import '../services/sleep_service.dart';
 import '../services/sound_link_service.dart';
 import '../widgets/app_card.dart';
 import '../widgets/page_header.dart';
+import '../widgets/ritual_orbit.dart';
 
 class TodayScreen extends StatefulWidget {
   const TodayScreen({super.key});
@@ -42,17 +43,13 @@ class _TodayScreenState extends State<TodayScreen> {
   bool _routineLoading = true;
 
   Set<String> _plants = {};
-  bool _plantsLoading = true;
 
   SleepLog? _sleepLog;
-  bool _sleepLoading = true;
   List<SleepLog> _recentSleepLogs = [];
 
   FastingLog _fastingLog = const FastingLog();
-  bool _fastingLoading = true;
 
   String? _soundUrl;
-  bool _soundLoading = true;
 
   Map<SkincarePeriod, String> _skincarePhotos = {};
   bool _skincareLoading = true;
@@ -155,12 +152,9 @@ class _TodayScreenState extends State<TodayScreen> {
   Future<void> _loadPlants() async {
     try {
       final plants = await _plantService.loadUniquePlantsThisWeek();
-      setState(() {
-        _plants = plants;
-        _plantsLoading = false;
-      });
+      if (mounted) setState(() => _plants = plants);
     } catch (_) {
-      if (mounted) setState(() => _plantsLoading = false);
+      // Row falls back to defaults if this fails.
     }
   }
 
@@ -182,12 +176,9 @@ class _TodayScreenState extends State<TodayScreen> {
   Future<void> _loadSleep() async {
     try {
       final log = await _sleepService.loadLastNight();
-      setState(() {
-        _sleepLog = log;
-        _sleepLoading = false;
-      });
+      if (mounted) setState(() => _sleepLog = log);
     } catch (_) {
-      if (mounted) setState(() => _sleepLoading = false);
+      // Row falls back to defaults if this fails.
     }
   }
 
@@ -242,12 +233,9 @@ class _TodayScreenState extends State<TodayScreen> {
   Future<void> _loadFasting() async {
     try {
       final log = await _fastingService.loadToday();
-      setState(() {
-        _fastingLog = log;
-        _fastingLoading = false;
-      });
+      if (mounted) setState(() => _fastingLog = log);
     } catch (_) {
-      if (mounted) setState(() => _fastingLoading = false);
+      // Row falls back to defaults if this fails.
     }
   }
 
@@ -277,12 +265,9 @@ class _TodayScreenState extends State<TodayScreen> {
   Future<void> _loadSound() async {
     try {
       final url = await _soundLinkService.loadToday();
-      setState(() {
-        _soundUrl = url;
-        _soundLoading = false;
-      });
+      if (mounted) setState(() => _soundUrl = url);
     } catch (_) {
-      if (mounted) setState(() => _soundLoading = false);
+      // Row falls back to defaults if this fails.
     }
   }
 
@@ -485,6 +470,8 @@ class _TodayScreenState extends State<TodayScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final ritualSteps = [...morningRoutineSteps, ...eveningRoutineSteps];
+
     return SafeArea(
       bottom: false,
       child: ListView(
@@ -495,57 +482,57 @@ class _TodayScreenState extends State<TodayScreen> {
           _sectionTitle('Focus del giorno'),
           const SizedBox(height: 16),
           _buildFocusCard(),
-          const SizedBox(height: 32),
-          _sectionTitle('Routine mattutina'),
-          const SizedBox(height: 16),
+          const SizedBox(height: 40),
+          _sectionTitle('Ritual'),
+          const SizedBox(height: 20),
           if (_routineLoading)
             const Center(child: CircularProgressIndicator())
           else
-            ...morningRoutineSteps.map((step) {
-              final isCompleted = _completedStepIds.contains(step.id);
-              return AppCard(padding: EdgeInsets.zero, 
-                child: CheckboxListTile(
-                  value: isCompleted,
-                  onChanged: (value) => _toggleStep(step, value ?? false),
-                  title: Text(step.title),
-                  subtitle: Text('${step.durationMinutes} min'),
-                  controlAffinity: ListTileControlAffinity.leading,
-                ),
-              );
-            }),
-          const SizedBox(height: 32),
-          _sectionTitle('Routine serale'),
+            RitualOrbit(
+              steps: ritualSteps,
+              completedIds: _completedStepIds,
+              onToggle: (step) => _toggleStep(step, !_completedStepIds.contains(step.id)),
+            ),
           const SizedBox(height: 16),
-          if (_routineLoading)
-            const Center(child: CircularProgressIndicator())
-          else
-            ...eveningRoutineSteps.map((step) {
-              final isCompleted = _completedStepIds.contains(step.id);
-              return AppCard(padding: EdgeInsets.zero, 
-                child: CheckboxListTile(
-                  value: isCompleted,
-                  onChanged: (value) => _toggleStep(step, value ?? false),
-                  title: Text(step.title),
-                  subtitle: Text('${step.durationMinutes} min'),
-                  controlAffinity: ListTileControlAffinity.leading,
-                ),
-              );
-            }),
-          const SizedBox(height: 32),
-          _sectionTitle('Diversità vegetale'),
-          const SizedBox(height: 16),
-          _buildPlantCard(),
-          const SizedBox(height: 32),
-          _sectionTitle('Sonno'),
-          const SizedBox(height: 16),
-          _buildSleepCard(),
-          const SizedBox(height: 32),
-          if (_fastingEnabled) ...[
-            _sectionTitle('Digiuno'),
-            const SizedBox(height: 16),
-            _buildFastingCard(),
-            const SizedBox(height: 32),
-          ],
+          _editorialRow(
+            label: 'Diversità vegetale',
+            value: '${_plants.length} / 30',
+            note: _plants.isEmpty ? 'questa settimana' : _plants.join(', '),
+            action: 'aggiungi',
+            onTap: _showAddPlantDialog,
+          ),
+          _editorialRow(
+            label: 'Sonno',
+            value: _sleepLog == null ? '—' : _formatDuration(_sleepLog!.duration),
+            note: _sleepNote(),
+            action: _sleepLog == null ? 'registra' : 'modifica',
+            onTap: _showSleepDialog,
+          ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: _importSleepFromHealth,
+              child: const Text('Importa da Salute'),
+            ),
+          ),
+          if (_fastingEnabled)
+            _editorialRow(
+              label: 'Finestra di digiuno',
+              value: _fastingLog.lastMealTime == null
+                  ? '—'
+                  : _formatDuration(DateTime.now().difference(_fastingLog.lastMealTime!)),
+              note: 'ultimo pasto ${_fastingLog.lastMealTime == null ? "non segnato" : "segnato"} · obiettivo 16h',
+              action: 'segna pasto',
+              onTap: _showFastingDialog,
+            ),
+          _editorialRow(
+            label: 'Suono di oggi',
+            value: _soundUrl == null ? 'Nessun link' : 'Link salvato',
+            note: _soundUrl ?? 'aggiungi un link per oggi',
+            action: 'modifica',
+            onTap: _showSoundLinkDialog,
+          ),
+          const SizedBox(height: 24),
           if (_userSex == UserSex.female) ...[
             _sectionTitle('Ciclo mestruale'),
             const SizedBox(height: 16),
@@ -555,10 +542,6 @@ class _TodayScreenState extends State<TodayScreen> {
           _sectionTitle('Prodotti skincare'),
           const SizedBox(height: 16),
           _buildSkincareCard(),
-          const SizedBox(height: 32),
-          _sectionTitle('Suoni'),
-          const SizedBox(height: 16),
-          _buildSoundCard(),
         ],
       ),
     );
@@ -566,6 +549,98 @@ class _TodayScreenState extends State<TodayScreen> {
 
   Widget _sectionTitle(String text) {
     return Text(text.toUpperCase(), style: Theme.of(context).textTheme.labelMedium);
+  }
+
+  String _sleepNote() {
+    const base = 'obiettivo 9h';
+    final variability = _wakeTimeVariabilityMinutes();
+    if (variability == null) return base;
+    return '$base · sveglia variabile di ${_formatDuration(Duration(minutes: variability))}';
+  }
+
+  Widget _editorialRow({
+    required String label,
+    required String value,
+    required String note,
+    required String action,
+    required VoidCallback onTap,
+  }) {
+    final theme = Theme.of(context);
+    final tokens = theme.extension<CircadianTokens>()!;
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 44),
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        decoration: BoxDecoration(border: Border(top: BorderSide(color: tokens.hairline))),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label.toUpperCase(), style: theme.textTheme.labelMedium),
+                  const SizedBox(height: 8),
+                  Text(value, style: theme.textTheme.headlineSmall),
+                  const SizedBox(height: 5),
+                  Text(note, style: theme.textTheme.bodySmall),
+                ],
+              ),
+            ),
+            const SizedBox(width: 16),
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(
+                action,
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 11,
+                  color: theme.colorScheme.primary,
+                  letterSpacing: 0.3,
+                  fontVariations: const [FontVariation('wght', 500)],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showFastingDialog() async {
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Finestra di digiuno'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            OutlinedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _markMeal(isFirstMeal: false);
+              },
+              child: const Text('Segna ultimo pasto'),
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _markMeal(isFirstMeal: true);
+              },
+              child: const Text('Segna primo pasto'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Chiudi'),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildFocusCard() {
@@ -637,139 +712,6 @@ class _TodayScreenState extends State<TodayScreen> {
           ],
         ),
       ],
-    );
-  }
-
-  Widget _buildPlantCard() {
-    return AppCard(padding: EdgeInsets.zero, 
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: _plantsLoading
-            ? const Center(child: CircularProgressIndicator())
-            : Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        '${_plants.length} / 30 piante questa settimana',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.add_circle_outline),
-                        onPressed: _showAddPlantDialog,
-                      ),
-                    ],
-                  ),
-                  if (_plants.isNotEmpty) ...[
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children:
-                          _plants.map((plant) => Chip(label: Text(plant))).toList(),
-                    ),
-                  ],
-                ],
-              ),
-      ),
-    );
-  }
-
-  Widget _buildSleepCard() {
-    return AppCard(padding: EdgeInsets.zero, 
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: _sleepLoading
-            ? const Center(child: CircularProgressIndicator())
-            : Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              _sleepLog == null
-                                  ? 'Notte scorsa — non ancora registrata'
-                                  : _formatDuration(_sleepLog!.duration),
-                              style: Theme.of(context).textTheme.titleMedium,
-                            ),
-                            const Text('Obiettivo 9h'),
-                          ],
-                        ),
-                      ),
-                      FilledButton(
-                        onPressed: _showSleepDialog,
-                        child: Text(_sleepLog == null ? 'Registra' : 'Modifica'),
-                      ),
-                    ],
-                  ),
-                  TextButton.icon(
-                    onPressed: _importSleepFromHealth,
-                    icon: const Icon(Icons.favorite_outline, size: 18),
-                    label: const Text('Importa da Salute'),
-                  ),
-                  if (_wakeTimeVariabilityMinutes() != null) ...[
-                    const Divider(height: 24),
-                    Text(
-                      'Ritmo circadiano',
-                      style: Theme.of(context).textTheme.labelLarge,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Sveglia variabile di ${_formatDuration(Duration(minutes: _wakeTimeVariabilityMinutes()!))} '
-                      'negli ultimi ${_recentSleepLogs.length} giorni tracciati.',
-                      style: TextStyle(color: Theme.of(context).colorScheme.outline),
-                    ),
-                  ],
-                ],
-              ),
-      ),
-    );
-  }
-
-  Widget _buildFastingCard() {
-    return AppCard(padding: EdgeInsets.zero, 
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: _fastingLoading
-            ? const Center(child: CircularProgressIndicator())
-            : Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _fastingLog.lastMealTime == null
-                        ? 'Finestra di digiuno — non ancora tracciata'
-                        : 'In digiuno da ${_formatDuration(DateTime.now().difference(_fastingLog.lastMealTime!))}',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const Text('Obiettivo 16h'),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () => _markMeal(isFirstMeal: false),
-                          child: const Text('Segna ultimo pasto'),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () => _markMeal(isFirstMeal: true),
-                          child: const Text('Segna primo pasto'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-      ),
     );
   }
 
@@ -859,40 +801,6 @@ class _TodayScreenState extends State<TodayScreen> {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildSoundCard() {
-    return AppCard(padding: EdgeInsets.zero, 
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: _soundLoading
-            ? const Center(child: CircularProgressIndicator())
-            : Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: _soundUrl == null
-                        ? const Text('Nessun link per oggi')
-                        : InkWell(
-                            onTap: () =>
-                                launchUrl(Uri.parse(_soundUrl!)),
-                            child: Text(
-                              _soundUrl!,
-                              style: TextStyle(
-                                color: Theme.of(context).colorScheme.primary,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.edit_outlined),
-                    onPressed: _showSoundLinkDialog,
-                  ),
-                ],
-              ),
-      ),
     );
   }
 

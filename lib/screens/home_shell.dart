@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -64,42 +65,137 @@ class _HomeShellState extends State<HomeShell> {
   }
 }
 
-class _GlassNavBar extends StatelessWidget {
+/// Thin, quiet nav — text labels only, the active item read through color
+/// and a small breathing dot rather than an icon or a filled indicator.
+class _GlassNavBar extends StatefulWidget {
   const _GlassNavBar({required this.currentIndex, required this.onSelect});
 
   final int currentIndex;
   final ValueChanged<int> onSelect;
 
+  static const labels = ['Oggi', 'Lab', 'Pratiche', 'Scopri', 'Profilo'];
+
+  @override
+  State<_GlassNavBar> createState() => _GlassNavBarState();
+}
+
+class _GlassNavBarState extends State<_GlassNavBar> with SingleTickerProviderStateMixin {
+  late final AnimationController _pulse;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulse = AnimationController(vsync: this, duration: const Duration(milliseconds: 4500))
+      ..repeat();
+  }
+
+  @override
+  void dispose() {
+    _pulse.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final scheme = Theme.of(context).colorScheme;
+    final tokens = Theme.of(context).extension<CircadianTokens>()!;
+    final reduceMotion = MediaQuery.of(context).disableAnimations;
+
     return ClipRect(
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
         child: Container(
           decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surface.withValues(alpha: isDark ? 0.5 : 0.65),
-            border: Border(
-              top: BorderSide(
-                color: Colors.white.withValues(alpha: isDark ? 0.05 : 0.6),
-              ),
-            ),
+            color: scheme.surface.withValues(alpha: tokens.navOpacity),
+            border: Border(top: BorderSide(color: tokens.hairline)),
           ),
           child: SafeArea(
             top: false,
-            child: NavigationBar(
-              backgroundColor: Colors.transparent,
-              selectedIndex: currentIndex,
-              onDestinationSelected: onSelect,
-              destinations: const [
-                NavigationDestination(icon: Icon(Icons.wb_sunny_outlined), label: 'Oggi'),
-                NavigationDestination(icon: Icon(Icons.science_outlined), label: 'Lab'),
-                NavigationDestination(icon: Icon(Icons.self_improvement_outlined), label: 'Pratiche'),
-                NavigationDestination(icon: Icon(Icons.explore_outlined), label: 'Scopri'),
-                NavigationDestination(icon: Icon(Icons.person_outline), label: 'Profilo'),
-              ],
+            child: SizedBox(
+              height: 64,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: List.generate(_GlassNavBar.labels.length, (i) {
+                  final active = i == widget.currentIndex;
+                  return _NavTarget(
+                    label: _GlassNavBar.labels[i],
+                    active: active,
+                    color: active ? scheme.primary : scheme.outline,
+                    pulse: _pulse,
+                    reduceMotion: reduceMotion,
+                    onTap: () => widget.onSelect(i),
+                  );
+                }),
+              ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NavTarget extends StatelessWidget {
+  const _NavTarget({
+    required this.label,
+    required this.active,
+    required this.color,
+    required this.pulse,
+    required this.reduceMotion,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool active;
+  final Color color;
+  final Animation<double> pulse;
+  final bool reduceMotion;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      customBorder: const StadiumBorder(),
+      child: Container(
+        constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+        alignment: Alignment.center,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 11,
+                letterSpacing: 0.5,
+                color: color,
+                fontVariations: const [FontVariation('wght', 500)],
+              ),
+            ),
+            const SizedBox(height: 6),
+            SizedBox(
+              width: 3,
+              height: 3,
+              child: active
+                  ? AnimatedBuilder(
+                      animation: pulse,
+                      builder: (context, _) {
+                        final opacity = reduceMotion
+                            ? 0.7
+                            : 0.35 + 0.65 * (0.5 - 0.5 * math.cos(pulse.value * 2 * math.pi));
+                        return Opacity(
+                          opacity: opacity,
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+                          ),
+                        );
+                      },
+                    )
+                  : null,
+            ),
+          ],
         ),
       ),
     );

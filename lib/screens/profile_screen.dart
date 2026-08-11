@@ -176,12 +176,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const SizedBox(height: 24),
           Text('ASPETTO', style: Theme.of(context).textTheme.labelMedium),
+          Text(
+            'Automatico segue l\'ora in una curva continua: luce al risveglio, '
+            'sospeso nel pomeriggio, notte la sera.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
           const SizedBox(height: 8),
           SegmentedButton<ThemeMode>(
             segments: const [
               ButtonSegment(value: ThemeMode.light, label: Text('Chiaro')),
               ButtonSegment(value: ThemeMode.dark, label: Text('Scuro')),
-              ButtonSegment(value: ThemeMode.system, label: Text('Sistema')),
+              ButtonSegment(value: ThemeMode.system, label: Text('Auto')),
             ],
             selected: {_settings.themeMode},
             onSelectionChanged: (selection) => _setThemeMode(selection.first),
