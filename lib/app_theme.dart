@@ -114,15 +114,31 @@ const _evening = _StateTokens(
 
 double _mixD(double a, double b, double k) => a + (b - a) * k;
 
+// Background/accent/glow are fine as a plain crossfade — they're just
+// shifting hue, nothing depends on them staying legible against each
+// other. Text/surface/border are different: they only work because they
+// contrast against bg, and a plain lerp walks both ends toward the same
+// mid-gray at once, right around the point that matters most (afternoon
+// "Sospeso" -> evening "Notte" flips from a light bg to a dark one).
+//
+// So ink/surf/border/btn are pinned to whichever endpoint currently
+// contrasts with bg's *actual* rendered luminance, not the raw time
+// fraction — flipping once bg crosses the midpoint rather than bleeding
+// through gray-on-gray. The flip has no visible seam in practice: the
+// real app recomputes this every 15 minutes (see main.dart), never live
+// mid-frame, so there's no animation to jar.
 _StateTokens _mix(_StateTokens a, _StateTokens b, double k) {
+  final bg = Color.lerp(a.bg, b.bg, k)!;
+  final contrastK = bg.computeLuminance() >= 0.5 ? 0.0 : 1.0;
+
   return _StateTokens(
-    bg: Color.lerp(a.bg, b.bg, k)!,
-    ink: Color.lerp(a.ink, b.ink, k)!,
-    inkSoft: Color.lerp(a.inkSoft, b.inkSoft, k)!,
-    inkFaint: Color.lerp(a.inkFaint, b.inkFaint, k)!,
-    surf: Color.lerp(a.surf, b.surf, k)!,
+    bg: bg,
+    ink: Color.lerp(a.ink, b.ink, contrastK)!,
+    inkSoft: Color.lerp(a.inkSoft, b.inkSoft, contrastK)!,
+    inkFaint: Color.lerp(a.inkFaint, b.inkFaint, contrastK)!,
+    surf: Color.lerp(a.surf, b.surf, contrastK)!,
     surfaceAlpha: _mixD(a.surfaceAlpha, b.surfaceAlpha, k),
-    border: Color.lerp(a.border, b.border, k)!,
+    border: Color.lerp(a.border, b.border, contrastK)!,
     borderAlpha: _mixD(a.borderAlpha, b.borderAlpha, k),
     hairlineAlpha: _mixD(a.hairlineAlpha, b.hairlineAlpha, k),
     accent: Color.lerp(a.accent, b.accent, k)!,
@@ -130,9 +146,9 @@ _StateTokens _mix(_StateTokens a, _StateTokens b, double k) {
     navOpacity: _mixD(a.navOpacity, b.navOpacity, k),
     glowOpacity: _mixD(a.glowOpacity, b.glowOpacity, k),
     grainOpacity: _mixD(a.grainOpacity, b.grainOpacity, k),
-    grainBlend: k < 0.5 ? a.grainBlend : b.grainBlend,
-    btn: Color.lerp(a.btn, b.btn, k)!,
-    btnFg: Color.lerp(a.btnFg, b.btnFg, k)!,
+    grainBlend: contrastK < 0.5 ? a.grainBlend : b.grainBlend,
+    btn: Color.lerp(a.btn, b.btn, contrastK)!,
+    btnFg: Color.lerp(a.btnFg, b.btnFg, contrastK)!,
     shadowAlpha: _mixD(a.shadowAlpha, b.shadowAlpha, k),
     shadowBlur: _mixD(a.shadowBlur, b.shadowBlur, k),
     shadowOffsetY: _mixD(a.shadowOffsetY, b.shadowOffsetY, k),
