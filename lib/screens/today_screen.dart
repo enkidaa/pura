@@ -2,17 +2,16 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 
-import '../app_theme.dart';
+import '../l10n/app_strings.dart';
 import '../models/app_settings.dart';
 import '../models/cycle_info.dart';
 import '../models/fasting_log.dart';
-import '../models/focus_suggestion.dart';
 import '../models/routine_step.dart';
 import '../models/sleep_log.dart';
 import '../services/cycle_service.dart';
 import '../services/fasting_service.dart';
-import '../services/focus_service.dart';
 import '../services/health_service.dart';
 import '../services/plant_diversity_service.dart';
 import '../services/routine_progress_service.dart';
@@ -20,9 +19,16 @@ import '../services/settings_service.dart';
 import '../services/skincare_photo_service.dart';
 import '../services/sleep_service.dart';
 import '../services/sound_link_service.dart';
+import '../services/time_budget_service.dart';
 import '../widgets/app_card.dart';
 import '../widgets/page_header.dart';
 import '../widgets/ritual_orbit.dart';
+import '../widgets/time_budget_prompt.dart';
+import 'cycle_screen.dart';
+import 'fasting_detail_screen.dart';
+import 'plant_diversity_screen.dart';
+import 'routine_step_detail_screen.dart';
+import 'sleep_screen.dart';
 
 class TodayScreen extends StatefulWidget {
   const TodayScreen({super.key});
@@ -54,10 +60,6 @@ class _TodayScreenState extends State<TodayScreen> {
   Map<SkincarePeriod, String> _skincarePhotos = {};
   bool _skincareLoading = true;
 
-  final _focusService = FocusService();
-  FocusSuggestion? _focusSuggestion;
-  String? _focusError;
-  bool _focusLoading = false;
 
   final _settingsService = SettingsService();
   final _cycleService = CycleService();
@@ -65,6 +67,11 @@ class _TodayScreenState extends State<TodayScreen> {
   CycleInfo? _cycleInfo;
   bool _cycleLoading = true;
   bool _fastingEnabled = false;
+  String? _nickname;
+  TimeOfDay? _eveningRitualTime;
+
+  final _timeBudgetService = TimeBudgetService();
+  int? _timeBudgetMinutes;
 
   @override
   void initState() {
@@ -77,12 +84,81 @@ class _TodayScreenState extends State<TodayScreen> {
     _loadSound();
     _loadSkincare();
     _loadCycleIfRelevant();
+    _loadTimeBudget();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _maybePromptTimeBudget());
+  }
+
+  Future<void> _loadTimeBudget() async {
+    try {
+      final minutes = await _timeBudgetService.loadActiveBudgetMinutes();
+      if (mounted) setState(() => _timeBudgetMinutes = minutes);
+    } catch (_) {
+      // Ritual just shows the full list if this fails.
+    }
+  }
+
+  Future<void> _maybePromptTimeBudget() async {
+    final hour = DateTime.now().hour;
+    final String dayPart;
+    if (hour < 13) {
+      dayPart = 'morning';
+    } else if (hour >= 19) {
+      dayPart = 'evening';
+    } else {
+      return;
+    }
+
+    try {
+      final already = await _timeBudgetService.hasPromptedToday(dayPart);
+      if (already || !mounted) return;
+      final minutes = await showTimeBudgetPrompt(context);
+      await _timeBudgetService.savePrompt(dayPart, minutes);
+      _loadTimeBudget();
+    } catch (_) {
+      // Non-critical — the prompt just won't show this time.
+    }
+  }
+
+  /// Reorders (never hides or invents) the fixed Ritual step list: the
+  /// half of the day that's actually relevant right now comes first, and
+  /// within each half, steps not yet completed today surface before ones
+  /// already done. Purely a deterministic client-side reordering of
+  /// existing data — no AI call, nothing about completion state changes.
+  List<RoutineStep> _orderedRitualSteps() {
+    final now = TimeOfDay.now();
+    final cutoff = _eveningRitualTime ?? const TimeOfDay(hour: 17, minute: 0);
+    final pastCutoff =
+        now.hour > cutoff.hour || (now.hour == cutoff.hour && now.minute >= cutoff.minute);
+    final byTimeOfDay = pastCutoff
+        ? [...eveningRoutineSteps, ...morningRoutineSteps]
+        : [...morningRoutineSteps, ...eveningRoutineSteps];
+    final pending = byTimeOfDay.where((s) => !_completedStepIds.contains(s.id)).toList();
+    final done = byTimeOfDay.where((s) => _completedStepIds.contains(s.id)).toList();
+    return [...pending, ...done];
+  }
+
+  List<RoutineStep> _fitToTimeBudget(List<RoutineStep> steps) {
+    final budget = _timeBudgetMinutes;
+    if (budget == null) return steps;
+
+    final fitted = <RoutineStep>[];
+    var total = 0;
+    for (final step in steps) {
+      if (total + step.durationMinutes > budget) continue;
+      fitted.add(step);
+      total += step.durationMinutes;
+    }
+    return fitted.isEmpty ? steps : fitted;
   }
 
   Future<void> _loadCycleIfRelevant() async {
     try {
       final settings = await _settingsService.loadSettings();
-      setState(() => _fastingEnabled = settings.fastingEnabled);
+      setState(() {
+        _fastingEnabled = settings.fastingEnabled;
+        _nickname = settings.nickname;
+        _eveningRitualTime = settings.eveningRitualTime;
+      });
 
       if (settings.sex != UserSex.female) {
         if (mounted) setState(() => _cycleLoading = false);
@@ -96,20 +172,6 @@ class _TodayScreenState extends State<TodayScreen> {
       });
     } catch (_) {
       if (mounted) setState(() => _cycleLoading = false);
-    }
-  }
-
-  Future<void> _logPeriodStartToday() async {
-    final previous = _cycleInfo;
-    try {
-      await _cycleService.logPeriodStart(DateTime.now());
-      final info = await _cycleService.loadCycleInfo();
-      if (!mounted) return;
-      setState(() => _cycleInfo = info);
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _cycleInfo = previous);
-      _showError('Impossibile salvare, riprova');
     }
   }
 
@@ -145,7 +207,7 @@ class _TodayScreenState extends State<TodayScreen> {
           _completedStepIds.add(step.id);
         }
       });
-      _showError('Impossibile salvare, riprova');
+      _showError(AppStrings.of(context).impossibileSalvareRiprova);
     }
   }
 
@@ -155,21 +217,6 @@ class _TodayScreenState extends State<TodayScreen> {
       if (mounted) setState(() => _plants = plants);
     } catch (_) {
       // Row falls back to defaults if this fails.
-    }
-  }
-
-  Future<void> _addPlant(String name) async {
-    final trimmed = name.trim();
-    if (trimmed.isEmpty || _plants.contains(trimmed)) return;
-
-    setState(() => _plants = {..._plants, trimmed});
-
-    try {
-      await _plantService.logPlant(trimmed);
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _plants = _plants.where((p) => p != trimmed).toSet());
-      _showError('Impossibile salvare, riprova');
     }
   }
 
@@ -226,7 +273,7 @@ class _TodayScreenState extends State<TodayScreen> {
     } catch (_) {
       if (!mounted) return;
       setState(() => _sleepLog = previous);
-      _showError('Impossibile salvare, riprova');
+      _showError(AppStrings.of(context).impossibileSalvareRiprova);
     }
   }
 
@@ -236,29 +283,6 @@ class _TodayScreenState extends State<TodayScreen> {
       if (mounted) setState(() => _fastingLog = log);
     } catch (_) {
       // Row falls back to defaults if this fails.
-    }
-  }
-
-  Future<void> _markMeal({required bool isFirstMeal}) async {
-    final previous = _fastingLog;
-    final now = DateTime.now();
-    setState(() {
-      _fastingLog = FastingLog(
-        firstMealTime: isFirstMeal ? now : _fastingLog.firstMealTime,
-        lastMealTime: isFirstMeal ? _fastingLog.lastMealTime : now,
-      );
-    });
-
-    try {
-      if (isFirstMeal) {
-        await _fastingService.markFirstMealNow();
-      } else {
-        await _fastingService.markLastMealNow();
-      }
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _fastingLog = previous);
-      _showError('Impossibile salvare, riprova');
     }
   }
 
@@ -283,7 +307,7 @@ class _TodayScreenState extends State<TodayScreen> {
     } catch (_) {
       if (!mounted) return;
       setState(() => _soundUrl = previous);
-      _showError('Impossibile salvare, riprova');
+      _showError(AppStrings.of(context).impossibileSalvareRiprova);
     }
   }
 
@@ -308,27 +332,7 @@ class _TodayScreenState extends State<TodayScreen> {
       await _loadSkincare();
     } catch (_) {
       if (!mounted) return;
-      _showError('Impossibile salvare la foto, riprova');
-    }
-  }
-
-  Future<void> _generateFocus() async {
-    setState(() {
-      _focusLoading = true;
-      _focusError = null;
-    });
-
-    try {
-      final suggestion = await _focusService.getFocusDelGiorno();
-      setState(() {
-        _focusSuggestion = suggestion;
-        _focusLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _focusError = 'Impossibile generare il consiglio, riprova';
-        _focusLoading = false;
-      });
+      _showError(AppStrings.of(context).impossibileSalvareFotoRiprova);
     }
   }
 
@@ -336,122 +340,82 @@ class _TodayScreenState extends State<TodayScreen> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
-  Future<void> _showAddPlantDialog() async {
-    final controller = TextEditingController();
-    final name = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Aggiungi una pianta'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(hintText: 'Es. broccoli'),
-          onSubmitted: (value) => Navigator.of(context).pop(value),
+  Future<void> _openPlantDiversity() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const PlantDiversityScreen()),
+    );
+    _loadPlants();
+  }
+
+  Future<void> _openStepDetail(RoutineStep step) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => RoutineStepDetailScreen(
+          step: step,
+          initiallyDone: _completedStepIds.contains(step.id),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Annulla'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(controller.text),
-            child: const Text('Aggiungi'),
-          ),
-        ],
       ),
     );
-
-    if (name != null) _addPlant(name);
+    _loadProgress();
   }
 
   Future<void> _importSleepFromHealth() async {
+    final strings = AppStrings.of(context);
     final healthService = HealthService();
     final authorized = await healthService.requestAuthorization();
     if (!authorized) {
       if (!mounted) return;
-      _showError('Permesso Salute negato');
+      _showError(strings.permessoSaluteNegato);
       return;
     }
 
     final log = await healthService.fetchLastNightSleep();
     if (log == null) {
       if (!mounted) return;
-      _showError('Nessun dato sonno trovato in Salute');
+      _showError(strings.nessunDatoSonnoInSalute);
       return;
     }
 
     _saveSleep(log.bedtime, log.wakeTime);
   }
 
-  Future<void> _showSleepDialog() async {
-    var bedtime = _sleepLog != null
-        ? TimeOfDay.fromDateTime(_sleepLog!.bedtime)
-        : const TimeOfDay(hour: 23, minute: 0);
-    var wakeTime = _sleepLog != null
-        ? TimeOfDay.fromDateTime(_sleepLog!.wakeTime)
-        : const TimeOfDay(hour: 7, minute: 0);
-
-    final pickedBedtime = await showTimePicker(
-      context: context,
-      initialTime: bedtime,
-      helpText: 'A che ora sei andato a letto?',
+  Future<void> _openSleepScreen() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const SleepScreen()),
     );
-    if (pickedBedtime == null) return;
-    bedtime = pickedBedtime;
+    _loadSleep();
+    _loadSleepRegularity();
+  }
 
-    if (!mounted) return;
-    final pickedWakeTime = await showTimePicker(
-      context: context,
-      initialTime: wakeTime,
-      helpText: 'A che ora ti sei svegliato?',
+  Future<void> _openCycleScreen() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const CycleScreen()),
     );
-    if (pickedWakeTime == null) return;
-    wakeTime = pickedWakeTime;
-
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final yesterday = today.subtract(const Duration(days: 1));
-    final bedtimeDate = DateTime(
-      yesterday.year,
-      yesterday.month,
-      yesterday.day,
-      bedtime.hour,
-      bedtime.minute,
-    );
-    final wakeTimeDate = DateTime(
-      today.year,
-      today.month,
-      today.day,
-      wakeTime.hour,
-      wakeTime.minute,
-    );
-
-    _saveSleep(bedtimeDate, wakeTimeDate);
+    _loadCycleIfRelevant();
   }
 
   Future<void> _showSoundLinkDialog() async {
+    final strings = AppStrings.of(context);
     final controller = TextEditingController(text: _soundUrl ?? '');
     final url = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Link per oggi'),
+        title: Text(strings.linkPerOggi),
         content: TextField(
           controller: controller,
           autofocus: true,
           keyboardType: TextInputType.url,
-          decoration: const InputDecoration(
-            hintText: 'Link Spotify, Apple Music o podcast',
-          ),
+          decoration: InputDecoration(hintText: strings.linkSpotifyEcc),
           onSubmitted: (value) => Navigator.of(context).pop(value),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Annulla'),
+            child: Text(strings.annulla),
           ),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(controller.text),
-            child: const Text('Salva'),
+            child: Text(strings.salva),
           ),
         ],
       ),
@@ -460,30 +424,46 @@ class _TodayScreenState extends State<TodayScreen> {
     if (url != null) _saveSound(url);
   }
 
+  Future<void> _playSound() async {
+    final url = _soundUrl;
+    if (url == null) return;
+    final uri = Uri.tryParse(url);
+    if (uri == null) return;
+    try {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      if (!mounted) return;
+      _showError(AppStrings.of(context).impossibileAprireLink);
+    }
+  }
+
   String _greeting() {
-    final hour = DateTime.now().hour;
-    if (hour < 6) return 'Buonanotte';
-    if (hour < 12) return 'Buongiorno';
-    if (hour < 18) return 'Buon pomeriggio';
-    return 'Buonasera';
+    final base = AppStrings.of(context).greeting(DateTime.now().hour);
+    if (_nickname == null || _nickname!.trim().isEmpty) return base;
+    return '$base, ${_nickname!.trim()}';
   }
 
   @override
   Widget build(BuildContext context) {
-    final ritualSteps = [...morningRoutineSteps, ...eveningRoutineSteps];
+    final allSteps = _orderedRitualSteps();
+    final ritualSteps = _fitToTimeBudget(allSteps);
+    final strings = AppStrings.of(context);
 
     return SafeArea(
       bottom: false,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
         children: [
-          PageHeader(eyebrow: 'Pura · Oggi', title: _greeting()),
+          PageHeader(eyebrow: strings.todayEyebrow, title: _greeting()),
           const SizedBox(height: 24),
-          _sectionTitle('Focus del giorno'),
-          const SizedBox(height: 16),
-          _buildFocusCard(),
-          const SizedBox(height: 40),
-          _sectionTitle('Ritual'),
+          _sectionTitle(strings.ritual),
+          if (_timeBudgetMinutes != null && ritualSteps.length < allSteps.length) ...[
+            const SizedBox(height: 6),
+            Text(
+              'In base ai tuoi $_timeBudgetMinutes min disponibili',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
           const SizedBox(height: 20),
           if (_routineLoading)
             const Center(child: CircularProgressIndicator())
@@ -492,54 +472,18 @@ class _TodayScreenState extends State<TodayScreen> {
               steps: ritualSteps,
               completedIds: _completedStepIds,
               onToggle: (step) => _toggleStep(step, !_completedStepIds.contains(step.id)),
+              onOpenDetail: _openStepDetail,
             ),
           const SizedBox(height: 16),
-          _editorialRow(
-            label: 'Diversità vegetale',
-            value: '${_plants.length} / 30',
-            note: _plants.isEmpty ? 'questa settimana' : _plants.join(', '),
-            action: 'aggiungi',
-            onTap: _showAddPlantDialog,
-          ),
-          _editorialRow(
-            label: 'Sonno',
-            value: _sleepLog == null ? '—' : _formatDuration(_sleepLog!.duration),
-            note: _sleepNote(),
-            action: _sleepLog == null ? 'registra' : 'modifica',
-            onTap: _showSleepDialog,
-          ),
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton(
-              onPressed: _importSleepFromHealth,
-              child: const Text('Importa da Salute'),
-            ),
-          ),
-          if (_fastingEnabled)
-            _editorialRow(
-              label: 'Finestra di digiuno',
-              value: _fastingLog.lastMealTime == null
-                  ? '—'
-                  : _formatDuration(DateTime.now().difference(_fastingLog.lastMealTime!)),
-              note: 'ultimo pasto ${_fastingLog.lastMealTime == null ? "non segnato" : "segnato"} · obiettivo 16h',
-              action: 'segna pasto',
-              onTap: _showFastingDialog,
-            ),
-          _editorialRow(
-            label: 'Suono di oggi',
-            value: _soundUrl == null ? 'Nessun link' : 'Link salvato',
-            note: _soundUrl ?? 'aggiungi un link per oggi',
-            action: 'modifica',
-            onTap: _showSoundLinkDialog,
-          ),
+          _buildStatGrid(),
           const SizedBox(height: 24),
           if (_userSex == UserSex.female) ...[
-            _sectionTitle('Ciclo mestruale'),
+            _sectionTitle(strings.cicloMestruale),
             const SizedBox(height: 16),
             _buildCycleCard(),
             const SizedBox(height: 32),
           ],
-          _sectionTitle('Prodotti skincare'),
+          _sectionTitle(strings.prodottiSkincare),
           const SizedBox(height: 16),
           _buildSkincareCard(),
         ],
@@ -552,225 +496,188 @@ class _TodayScreenState extends State<TodayScreen> {
   }
 
   String _sleepNote() {
-    const base = 'obiettivo 9h';
+    final strings = AppStrings.of(context);
     final variability = _wakeTimeVariabilityMinutes();
-    if (variability == null) return base;
-    return '$base · sveglia variabile di ${_formatDuration(Duration(minutes: variability))}';
+    if (variability == null) return strings.obiettivo9h;
+    return strings.svegliaVariabileDi(
+      _formatDuration(Duration(minutes: variability)),
+      _recentSleepLogs.length,
+    );
   }
 
-  Widget _editorialRow({
+  Widget _buildStatGrid() {
+    final strings = AppStrings.of(context);
+    final sleepTile = _statTile(
+      icon: Icons.bedtime_outlined,
+      label: strings.sonno,
+      value: _sleepLog == null ? '—' : _formatDuration(_sleepLog!.duration),
+      note: _sleepNote(),
+      onTap: _openSleepScreen,
+      secondaryIcon: Icons.favorite_outline,
+      onSecondaryTap: _importSleepFromHealth,
+    );
+    final plantsTile = _statTile(
+      icon: Icons.eco_outlined,
+      label: strings.diversitaVegetale,
+      value: '${_plants.length} / 30',
+      note: _plants.isEmpty ? strings.daLunedi : _plants.join(', '),
+      onTap: _openPlantDiversity,
+    );
+    final soundTile = _statTile(
+      icon: Icons.music_note_outlined,
+      label: strings.suonoDiOggi,
+      value: _soundUrl == null ? strings.nessunLink : strings.linkSalvato,
+      note: _soundUrl ?? strings.aggiungiUnLinkPerOggi,
+      onTap: _showSoundLinkDialog,
+      secondaryIcon: _soundUrl == null ? null : Icons.play_arrow,
+      onSecondaryTap: _soundUrl == null ? null : _playSound,
+    );
+    final fastingTile = _fastingEnabled
+        ? _statTile(
+            icon: Icons.timer_outlined,
+            label: strings.digiuno,
+            value: _fastingLog.lastMealTime == null
+                ? '—'
+                : _formatDuration(DateTime.now().difference(_fastingLog.lastMealTime!)),
+            note: strings.obiettivo16h,
+            onTap: _openFastingDetail,
+          )
+        : null;
+
+    final tiles = [plantsTile, sleepTile, ?fastingTile, soundTile];
+    final rows = <Widget>[];
+    for (var i = 0; i < tiles.length; i++) {
+      rows.add(tiles[i]);
+      if (i < tiles.length - 1) rows.add(const SizedBox(height: 12));
+    }
+
+    return Column(children: rows);
+  }
+
+  Widget _statTile({
+    required IconData icon,
     required String label,
     required String value,
     required String note,
-    required String action,
     required VoidCallback onTap,
+    IconData? secondaryIcon,
+    VoidCallback? onSecondaryTap,
   }) {
     final theme = Theme.of(context);
-    final tokens = theme.extension<CircadianTokens>()!;
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        constraints: const BoxConstraints(minHeight: 44),
-        padding: const EdgeInsets.symmetric(vertical: 20),
-        decoration: BoxDecoration(border: Border(top: BorderSide(color: tokens.hairline))),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+    return AppCard(
+      blur: 0,
+      padding: EdgeInsets.zero,
+      margin: EdgeInsets.zero,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(26),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(label.toUpperCase(), style: theme.textTheme.labelMedium),
-                  const SizedBox(height: 8),
-                  Text(value, style: theme.textTheme.headlineSmall),
-                  const SizedBox(height: 5),
-                  Text(note, style: theme.textTheme.bodySmall),
+                  Icon(icon, size: 18, color: theme.colorScheme.outline),
+                  if (secondaryIcon != null)
+                    GestureDetector(
+                      onTap: onSecondaryTap,
+                      child: Icon(secondaryIcon, size: 18, color: theme.colorScheme.primary),
+                    ),
                 ],
               ),
-            ),
-            const SizedBox(width: 16),
-            Padding(
-              padding: const EdgeInsets.only(top: 2),
-              child: Text(
-                action,
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 11,
-                  color: theme.colorScheme.primary,
-                  letterSpacing: 0.3,
-                  fontVariations: const [FontVariation('wght', 500)],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _showFastingDialog() async {
-    await showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Finestra di digiuno'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            OutlinedButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                _markMeal(isFirstMeal: false);
-              },
-              child: const Text('Segna ultimo pasto'),
-            ),
-            const SizedBox(height: 8),
-            OutlinedButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                _markMeal(isFirstMeal: true);
-              },
-              child: const Text('Segna primo pasto'),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Chiudi'),
+              const SizedBox(height: 14),
+              Text(value, style: theme.textTheme.headlineSmall),
+              const SizedBox(height: 4),
+              Text(label.toUpperCase(), style: theme.textTheme.labelMedium),
+              const SizedBox(height: 3),
+              Text(note, style: theme.textTheme.bodySmall, maxLines: 2, overflow: TextOverflow.ellipsis),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _buildFocusCard() {
-    return AppCard(
-      padding: const EdgeInsets.all(20),
-      gradient: LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [
-          Theme.of(context).colorScheme.secondary.withValues(alpha: 0.30),
-          Theme.of(context).colorScheme.primary.withValues(alpha: 0.16),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (_focusLoading)
-            const Center(child: CircularProgressIndicator())
-          else if (_focusError != null)
-            Text(
-              _focusError!,
-              style: TextStyle(color: Theme.of(context).colorScheme.error),
-            )
-          else if (_focusSuggestion != null)
-            _buildFocusSuggestion(_focusSuggestion!)
-          else
-            const Text('Ancora nessun consiglio per oggi.'),
-          const SizedBox(height: 12),
-          FilledButton(
-            onPressed: _focusLoading ? null : _generateFocus,
-            child: const Text('Genera consiglio'),
-          ),
-        ],
-      ),
+  Future<void> _openFastingDetail() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const FastingDetailScreen()),
     );
-  }
-
-  Widget _buildFocusSuggestion(FocusSuggestion suggestion) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          suggestion.recommendation,
-          style: Theme.of(context).textTheme.bodyLarge,
-        ),
-        const SizedBox(height: 8),
-        Text(
-          suggestion.observation,
-          style: TextStyle(color: Theme.of(context).colorScheme.outline),
-        ),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 6,
-          runSpacing: 6,
-          children: [
-            Chip(
-              label: Text('affidabilità: ${suggestion.confidence}'),
-              visualDensity: VisualDensity.compact,
-            ),
-            Chip(
-              label: Text('evidenza: ${suggestion.evidenceStrength}'),
-              visualDensity: VisualDensity.compact,
-            ),
-            if (suggestion.sources.isNotEmpty)
-              Chip(
-                label: Text('fonti: ${suggestion.sources.join(", ")}'),
-                visualDensity: VisualDensity.compact,
-              ),
-          ],
-        ),
-      ],
-    );
+    _loadFasting();
   }
 
   Widget _buildCycleCard() {
-    return AppCard(padding: EdgeInsets.zero, 
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: _cycleLoading
-            ? const Center(child: CircularProgressIndicator())
-            : Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _cycleInfo == null
-                        ? 'Ciclo — non ancora tracciato'
-                        : 'Giorno ${_cycleInfo!.cycleDay} · fase ${_phaseLabel(_cycleInfo!.phase)}',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  if (_cycleInfo != null)
-                    Text(
-                      'Prossimo ciclo stimato: ${_formatDate(_cycleInfo!.predictedNextStart)} '
-                      '(ciclo medio ${_cycleInfo!.avgCycleLength}gg)',
-                      style: TextStyle(color: Theme.of(context).colorScheme.outline),
+    final strings = AppStrings.of(context);
+    return AppCard(
+      blur: 0,
+      padding: EdgeInsets.zero,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(26),
+        onTap: _openCycleScreen,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: _cycleLoading
+              ? const Center(child: CircularProgressIndicator())
+              : Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _cycleInfo == null
+                                ? strings.cicloNonTracciato
+                                : strings.giornoFase(
+                                    _cycleInfo!.cycleDay, _phaseLabel(_cycleInfo!.phase)),
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          if (_cycleInfo != null)
+                            Text(
+                              strings.prossimoCiclo(
+                                _formatDate(_cycleInfo!.predictedNextStart),
+                                _cycleInfo!.avgCycleLength,
+                              ),
+                              style: TextStyle(color: Theme.of(context).colorScheme.outline),
+                            ),
+                        ],
+                      ),
                     ),
-                  const SizedBox(height: 12),
-                  OutlinedButton(
-                    onPressed: _logPeriodStartToday,
-                    child: const Text('Segna inizio ciclo oggi'),
-                  ),
-                ],
-              ),
+                    Icon(Icons.chevron_right, color: Theme.of(context).colorScheme.outline),
+                  ],
+                ),
+        ),
       ),
     );
   }
 
   String _phaseLabel(CyclePhase phase) {
+    final strings = AppStrings.of(context);
     switch (phase) {
       case CyclePhase.menstrual:
-        return 'mestruale';
+        return strings.faseMestruale;
       case CyclePhase.follicular:
-        return 'follicolare';
+        return strings.faseFollicolare;
       case CyclePhase.ovulation:
-        return 'ovulazione';
+        return strings.faseOvulazione;
       case CyclePhase.luteal:
-        return 'luteale';
+        return strings.faseLuteale;
     }
   }
 
   Widget _buildSkincareCard() {
-    return AppCard(padding: EdgeInsets.zero, 
+    final strings = AppStrings.of(context);
+    return AppCard(blur: 0, padding: EdgeInsets.zero,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: _skincareLoading
             ? const Center(child: CircularProgressIndicator())
             : Row(
                 children: [
-                  Expanded(child: _skincareSlot(SkincarePeriod.mattino, 'Mattino')),
+                  Expanded(child: _skincareSlot(SkincarePeriod.mattino, strings.mattino)),
                   const SizedBox(width: 16),
-                  Expanded(child: _skincareSlot(SkincarePeriod.sera, 'Sera')),
+                  Expanded(child: _skincareSlot(SkincarePeriod.sera, strings.sera)),
                 ],
               ),
       ),

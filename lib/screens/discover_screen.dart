@@ -1,10 +1,48 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../l10n/app_strings.dart';
+import '../models/focus_suggestion.dart';
+import '../models/practice.dart' show EvidenceLevel;
+import '../services/focus_service.dart';
 import '../widgets/app_card.dart';
+import '../widgets/evidence_badge.dart';
 import '../widgets/page_header.dart';
 
-class DiscoverScreen extends StatelessWidget {
+const _curcuminSourceUrl = 'https://www.ncbi.nlm.nih.gov/pmc/articles/PMC12257354/';
+
+class DiscoverScreen extends StatefulWidget {
   const DiscoverScreen({super.key});
+
+  @override
+  State<DiscoverScreen> createState() => _DiscoverScreenState();
+}
+
+class _DiscoverScreenState extends State<DiscoverScreen> {
+  final _focusService = FocusService();
+  FocusSuggestion? _focusSuggestion;
+  String? _focusError;
+  bool _focusLoading = false;
+
+  Future<void> _generateFocus() async {
+    setState(() {
+      _focusLoading = true;
+      _focusError = null;
+    });
+
+    try {
+      final suggestion = await _focusService.getFocusDelGiorno();
+      setState(() {
+        _focusSuggestion = suggestion;
+        _focusLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _focusError = AppStrings.of(context).impossibileGenerareConsiglio;
+        _focusLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -15,6 +53,11 @@ class DiscoverScreen extends StatelessWidget {
         children: [
           const PageHeader(eyebrow: 'Questo mese', title: 'Scopri'),
           const SizedBox(height: 24),
+          Text(AppStrings.of(context).focusDelGiorno.toUpperCase(),
+              style: Theme.of(context).textTheme.labelMedium),
+          const SizedBox(height: 16),
+          _buildFocusCard(),
+          const SizedBox(height: 32),
           AppCard(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
@@ -42,6 +85,12 @@ class DiscoverScreen extends StatelessWidget {
                   "significativamente diversa. Vanno sempre abbinati.",
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
+                const SizedBox(height: 12),
+                InkWell(
+                  onTap: () =>
+                      launchUrl(Uri.parse(_curcuminSourceUrl), mode: LaunchMode.externalApplication),
+                  child: const EvidenceBadge(level: EvidenceLevel.moderata),
+                ),
               ],
             ),
           ),
@@ -53,18 +102,23 @@ class DiscoverScreen extends StatelessWidget {
             subtitle: '5 min al giorno',
             description:
                 'Ancora il tuo orologio circadiano. All\'aperto, senza occhiali da sole, entro 30 minuti dal risveglio.',
+            evidenceLevel: EvidenceLevel.moderata,
+            evidenceNote: 'Fonte: vedi "Luce solare negli occhi" nel Ritual.',
           ),
           const _ChallengeCard(
             title: 'Inizio mouth taping',
             subtitle: '2 settimane',
             description:
                 'Comincia con respirazione nasale di giorno. Poi brevi sessioni serali. Poi notti intere.',
+            evidenceLevel: EvidenceLevel.nonVerificata,
           ),
           const _ChallengeCard(
             title: 'Finale freddo — 14 giorni',
             subtitle: '30 sec / doccia',
             description:
                 'Termina ogni doccia con acqua fredda. Osserva come cambiano umore ed energia dal 7° giorno.',
+            evidenceLevel: EvidenceLevel.moderata,
+            evidenceNote: 'Fonte: vedi "Doccia fredda" nelle Pratiche.',
           ),
           const SizedBox(height: 32),
           Text('PROTOCOLLI STAGIONALI', style: Theme.of(context).textTheme.labelMedium),
@@ -89,6 +143,79 @@ class DiscoverScreen extends StatelessWidget {
       ),
     );
   }
+
+  Widget _buildFocusCard() {
+    return AppCard(
+      padding: const EdgeInsets.all(20),
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          Theme.of(context).colorScheme.secondary.withValues(alpha: 0.30),
+          Theme.of(context).colorScheme.primary.withValues(alpha: 0.16),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (_focusLoading)
+            const Center(child: CircularProgressIndicator())
+          else if (_focusError != null)
+            Text(
+              _focusError!,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            )
+          else if (_focusSuggestion != null)
+            _buildFocusSuggestion(_focusSuggestion!)
+          else
+            Text(AppStrings.of(context).ancoraNessunConsiglio),
+          const SizedBox(height: 12),
+          FilledButton(
+            onPressed: _focusLoading ? null : _generateFocus,
+            child: Text(AppStrings.of(context).generaConsiglio),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFocusSuggestion(FocusSuggestion suggestion) {
+    final strings = AppStrings.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          suggestion.recommendation,
+          style: Theme.of(context).textTheme.bodyLarge,
+        ),
+        const SizedBox(height: 8),
+        Text(
+          suggestion.observation,
+          style: TextStyle(color: Theme.of(context).colorScheme.outline),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: [
+            Chip(
+              label: Text('${strings.affidabilita}: ${suggestion.confidence}'),
+              visualDensity: VisualDensity.compact,
+            ),
+            Chip(
+              label: Text('${strings.evidenza}: ${suggestion.evidenceStrength}'),
+              visualDensity: VisualDensity.compact,
+            ),
+            if (suggestion.sources.isNotEmpty)
+              Chip(
+                label: Text('${strings.fonti}: ${suggestion.sources.join(", ")}'),
+                visualDensity: VisualDensity.compact,
+              ),
+          ],
+        ),
+      ],
+    );
+  }
 }
 
 class _ChallengeCard extends StatelessWidget {
@@ -96,26 +223,37 @@ class _ChallengeCard extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.description,
+    this.evidenceLevel = EvidenceLevel.nonVerificata,
+    this.evidenceNote,
   });
 
   final String title;
   final String subtitle;
   final String description;
+  final EvidenceLevel evidenceLevel;
+  final String? evidenceNote;
 
   @override
   Widget build(BuildContext context) {
-    return AppCard(padding: EdgeInsets.zero, 
-      child: ListTile(
-        title: Text(title),
-        subtitle: Column(
+    return AppCard(blur: 0, padding: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Text(title, style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 4),
             Text(subtitle, style: TextStyle(color: Theme.of(context).colorScheme.primary)),
             const SizedBox(height: 4),
             Text(description),
+            const SizedBox(height: 10),
+            EvidenceBadge(level: evidenceLevel),
+            if (evidenceNote != null) ...[
+              const SizedBox(height: 4),
+              Text(evidenceNote!, style: Theme.of(context).textTheme.bodySmall),
+            ],
           ],
         ),
-        isThreeLine: true,
       ),
     );
   }
@@ -129,10 +267,19 @@ class _ProtocolCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AppCard(padding: EdgeInsets.zero, 
-      child: ListTile(
-        title: Text(title),
-        subtitle: Text(description),
+    return AppCard(blur: 0, padding: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 4),
+            Text(description),
+            const SizedBox(height: 10),
+            const EvidenceBadge(level: EvidenceLevel.nonVerificata),
+          ],
+        ),
       ),
     );
   }

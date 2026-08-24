@@ -34,4 +34,25 @@ class CycleService {
       onConflict: 'user_id,period_start_date',
     );
   }
+
+  Future<List<DateTime>> loadPeriodStartsHistory({int limit = 12}) async {
+    final userId = _client.auth.currentUser!.id;
+
+    final rows = await _client
+        .from('menstrual_cycle_logs')
+        .select('period_start_date')
+        .eq('user_id', userId)
+        .order('period_start_date', ascending: false)
+        .limit(limit);
+
+    return rows.map((row) => DateTime.parse(row['period_start_date'] as String)).toList();
+  }
+
+  /// Upserts each start individually — logPeriodStart is already idempotent
+  /// (unique user_id+date), so importing the same Salute data twice is safe.
+  Future<void> importPeriodStarts(List<DateTime> starts) async {
+    for (final start in starts) {
+      await logPeriodStart(start);
+    }
+  }
 }
