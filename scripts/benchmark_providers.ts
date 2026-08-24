@@ -4,7 +4,23 @@
 // scripts/benchmark_results/.
 //
 // Usage:
-//   GEMINI_API_KEY=... MISTRAL_API_KEY=... deno run --allow-net --allow-write scripts/benchmark_providers.ts
+//   GEMINI_API_KEY=... MISTRAL_API_KEY=... deno run --allow-net --allow-read --allow-write scripts/benchmark_providers.ts
+//
+// Gemini's free tier caps gemini-flash-latest at 20 requests/day per
+// project, so a full 15-case run rarely completes in one day. This script
+// checkpoints every successfully-completed case (schema-valid or not —
+// what matters is that we got a real response, not a network/quota
+// failure) to scripts/benchmark_results/checkpoint.json, skips whatever's
+// already there on the next run, and stops calling a provider immediately
+// once it hits a daily-quota 429 instead of wasting retries on a wait
+// that can't help within the same run. Run it once a day until both
+// providers show 15/15, then:
+//
+//   deno run --allow-read --allow-write scripts/benchmark_providers.ts --report
+//
+// --report only reads the checkpoint and writes the final comparison —
+// no API calls, no keys needed. It refuses to write anything until both
+// providers are complete, so the comparison is always n=15 vs n=15.
 //
 // Keys are read from environment only — never hardcode them here.
 
@@ -17,6 +33,13 @@ const PRICING = {
   gemini: { input: 0.075, output: 0.30 },
   mistral: { input: 0.10, output: 0.30 },
 };
+
+const OUT_DIR = "scripts/benchmark_results";
+const CHECKPOINT_PATH = `${OUT_DIR}/checkpoint.json`;
+// The first (pre-checkpoint) run's results — seeded into the checkpoint on
+// first use so that one real completed Gemini case and all 15 Mistral
+// cases aren't thrown away and re-fetched.
+const LEGACY_RESULTS_CSV = `${OUT_DIR}/results_2026-08-09.csv`;
 
 const SAFETY_CATEGORY_VALUES = [
   "wellness_recommendation",
@@ -76,20 +99,32 @@ const GEMINI_SCHEMA = {
   ],
 };
 
+interface FetchOutcome {
+  response: Response;
+  dailyQuotaExhausted: boolean;
+}
+
 // Simple retry with backoff for transient 429s (Gemini's free tier has a
 // low requests-per-minute limit that this benchmark's back-to-back calls
-// can trip).
-async function fetchWithRetry(url: string, init: RequestInit, maxAttempts = 4): Promise<Response> {
+// can trip). A *daily* quota 429 is different — no amount of waiting
+// within this run fixes it, so that's detected and returned immediately
+// instead of burning the retry budget on a ~30s wait for nothing.
+async function fetchWithRetry(url: string, init: RequestInit, maxAttempts = 4): Promise<FetchOutcome> {
   let lastResponse: Response | null = null;
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const response = await fetch(url, init);
-    if (response.status !== 429) return response;
+    if (response.status !== 429) return { response, dailyQuotaExhausted: false };
+
+    const bodyText = await response.text();
+    if (bodyText.includes("PerDay")) {
+      return { response, dailyQuotaExhausted: true };
+    }
+
     lastResponse = response;
-    await response.body?.cancel();
     const waitMs = 2000 * Math.pow(2, attempt);
     await new Promise((resolve) => setTimeout(resolve, waitMs));
   }
-  return lastResponse!;
+  return { response: lastResponse!, dailyQuotaExhausted: false };
 }
 
 interface TestCase {
@@ -192,8 +227,10 @@ const TEST_CASES: TestCase[] = [
   },
 ];
 
+type Provider = "gemini" | "mistral";
+
 interface RunResult {
-  provider: "gemini" | "mistral";
+  provider: Provider;
   caseId: string;
   expectedCategory: string | undefined;
   latencyMs: number;
@@ -205,6 +242,78 @@ interface RunResult {
   tokenOutput: number | null;
   costUsd: number | null;
   error: string | null;
+}
+
+// caseId -> result, per provider. Only ever holds results with error===null
+// (a real response was received and scored, whether schema-valid or not —
+// a schema violation is itself a measurement we want to keep, not a
+// failure to retry away).
+type Checkpoint = Record<Provider, Record<string, RunResult>>;
+
+function emptyCheckpoint(): Checkpoint {
+  return { gemini: {}, mistral: {} };
+}
+
+async function loadCheckpoint(): Promise<Checkpoint> {
+  try {
+    const text = await Deno.readTextFile(CHECKPOINT_PATH);
+    const parsed = JSON.parse(text);
+    return { gemini: parsed.gemini ?? {}, mistral: parsed.mistral ?? {} };
+  } catch {
+    return emptyCheckpoint();
+  }
+}
+
+async function saveCheckpoint(checkpoint: Checkpoint) {
+  await Deno.mkdir(OUT_DIR, { recursive: true });
+  await Deno.writeTextFile(CHECKPOINT_PATH, JSON.stringify(checkpoint, null, 2));
+}
+
+// One-time (per case) import of the pre-checkpoint run's already-completed
+// results, so the one real Gemini case and all 15 Mistral cases from the
+// very first run aren't discarded and re-fetched.
+async function seedFromLegacyResults(checkpoint: Checkpoint) {
+  let text: string;
+  try {
+    text = await Deno.readTextFile(LEGACY_RESULTS_CSV);
+  } catch {
+    return;
+  }
+
+  const lines = text.trim().split("\n").slice(1); // drop header
+  let seeded = 0;
+  for (const line of lines) {
+    const cols = line.split(",");
+    const [
+      provider, caseId, expectedCategory, returnedCategory, categoryMatches,
+      schemaValid, schemaError, latencyMs, tokenInput, tokenOutput, costUsd, error,
+    ] = cols;
+
+    if (provider !== "gemini" && provider !== "mistral") continue;
+    if (error && error.trim() !== "") continue; // only seed real completions
+    if (checkpoint[provider][caseId]) continue; // already have it
+
+    checkpoint[provider][caseId] = {
+      provider,
+      caseId,
+      expectedCategory: expectedCategory || undefined,
+      latencyMs: Number(latencyMs) || 0,
+      schemaValid: schemaValid === "true",
+      schemaError: schemaError || null,
+      returnedCategory: returnedCategory || null,
+      categoryMatches: categoryMatches === "" ? null : categoryMatches === "true",
+      tokenInput: tokenInput ? Number(tokenInput) : null,
+      tokenOutput: tokenOutput ? Number(tokenOutput) : null,
+      costUsd: costUsd ? Number(costUsd) : null,
+      error: null,
+    };
+    seeded++;
+  }
+
+  if (seeded > 0) {
+    console.log(`Seeded ${seeded} case(s) from ${LEGACY_RESULTS_CSV} into the checkpoint.`);
+    await saveCheckpoint(checkpoint);
+  }
 }
 
 function validateSchema(raw: unknown): { ok: true } | { ok: false; reason: string } {
@@ -237,10 +346,12 @@ function validateSchema(raw: unknown): { ok: true } | { ok: false; reason: strin
   return { ok: true };
 }
 
-async function runGemini(testCase: TestCase, apiKey: string): Promise<RunResult> {
+// null return means "daily quota exhausted, stop calling this provider for
+// the rest of this run" — distinct from a RunResult with a transient error.
+async function runGemini(testCase: TestCase, apiKey: string): Promise<RunResult | null> {
   const start = Date.now();
   try {
-    const response = await fetchWithRetry(
+    const { response, dailyQuotaExhausted } = await fetchWithRetry(
       `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
       {
         method: "POST",
@@ -251,6 +362,7 @@ async function runGemini(testCase: TestCase, apiKey: string): Promise<RunResult>
         }),
       },
     );
+    if (dailyQuotaExhausted) return null;
     const latencyMs = Date.now() - start;
 
     if (!response.ok) {
@@ -268,10 +380,10 @@ async function runGemini(testCase: TestCase, apiKey: string): Promise<RunResult>
   }
 }
 
-async function runMistral(testCase: TestCase, apiKey: string): Promise<RunResult> {
+async function runMistral(testCase: TestCase, apiKey: string): Promise<RunResult | null> {
   const start = Date.now();
   try {
-    const response = await fetchWithRetry("https://api.mistral.ai/v1/chat/completions", {
+    const { response, dailyQuotaExhausted } = await fetchWithRetry("https://api.mistral.ai/v1/chat/completions", {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
       body: JSON.stringify({
@@ -280,6 +392,7 @@ async function runMistral(testCase: TestCase, apiKey: string): Promise<RunResult
         response_format: { type: "json_object" },
       }),
     });
+    if (dailyQuotaExhausted) return null;
     const latencyMs = Date.now() - start;
 
     if (!response.ok) {
@@ -297,12 +410,7 @@ async function runMistral(testCase: TestCase, apiKey: string): Promise<RunResult
   }
 }
 
-function baseResult(
-  provider: "gemini" | "mistral",
-  testCase: TestCase,
-  latencyMs: number,
-  error: string,
-): RunResult {
+function baseResult(provider: Provider, testCase: TestCase, latencyMs: number, error: string): RunResult {
   return {
     provider,
     caseId: testCase.id,
@@ -320,7 +428,7 @@ function baseResult(
 }
 
 function finishResult(
-  provider: "gemini" | "mistral",
+  provider: Provider,
   testCase: TestCase,
   latencyMs: number,
   text: unknown,
@@ -361,14 +469,10 @@ function finishResult(
   };
 }
 
-function summarize(results: RunResult[], provider: "gemini" | "mistral") {
+function summarize(results: RunResult[], provider: Provider) {
   const rows = results.filter((r) => r.provider === provider);
   const total = rows.length;
   const errors = rows.filter((r) => r.error).length;
-  // Schema-violation rate is measured only over calls that actually
-  // returned content — a 429/network error is an infra/quota problem, not
-  // evidence of the model producing a malformed response. Conflating the
-  // two would misrepresent model quality.
   const completedRows = rows.filter((r) => !r.error);
   const schemaViolations = completedRows.filter((r) => !r.schemaValid).length;
   const withExpected = rows.filter((r) => r.expectedCategory && !r.error);
@@ -393,37 +497,47 @@ function summarize(results: RunResult[], provider: "gemini" | "mistral") {
   };
 }
 
-async function main() {
-  const geminiKey = Deno.env.get("GEMINI_API_KEY");
-  const mistralKey = Deno.env.get("MISTRAL_API_KEY");
-
-  if (!geminiKey || !mistralKey) {
-    console.error("Set GEMINI_API_KEY and MISTRAL_API_KEY environment variables before running.");
-    Deno.exit(1);
-  }
-
-  const results: RunResult[] = [];
-
-  for (const testCase of TEST_CASES) {
-    console.log(`Running case: ${testCase.id}`);
-    const [geminiResult, mistralResult] = await Promise.all([
-      runGemini(testCase, geminiKey),
-      runMistral(testCase, mistralKey),
-    ]);
-    results.push(geminiResult, mistralResult);
-    // Small gap between cases to stay under Gemini's free-tier RPM limit.
-    await new Promise((resolve) => setTimeout(resolve, 4000));
-  }
-
+function buildMarkdown(results: RunResult[], opts: { title: string; note: string; complete: boolean }): string {
   const geminiSummary = summarize(results, "gemini");
   const mistralSummary = summarize(results, "mistral");
-
   const timestamp = new Date().toISOString().slice(0, 10);
-  const outDir = "scripts/benchmark_results";
-  await Deno.mkdir(outDir, { recursive: true });
 
-  const csvHeader = "provider,case_id,expected_category,returned_category,category_matches,schema_valid,schema_error,latency_ms,token_input,token_output,cost_usd,error";
-  const csvRows = results.map((r) =>
+  return `# ${opts.title}
+
+Data: ${timestamp}
+Casi di test: ${TEST_CASES.length} (vedi \`benchmark_providers.ts\`)
+Stato: ${opts.complete ? "**COMPLETO** — n=" + TEST_CASES.length + " vs n=" + TEST_CASES.length + ", basi comparabili" : "parziale — vedi conteggio per provider sotto, il confronto non è ancora su basi comparabili"}
+
+${opts.note}
+
+## Riepilogo
+
+| Provider | Casi completati | Violazioni schema* | Mismatch categoria attesa* | Latenza media | Costo medio/richiesta | Errori (rete/quota) |
+|---|---|---|---|---|---|---|
+| Gemini Flash | ${geminiSummary.total}/${TEST_CASES.length} | ${geminiSummary.schemaViolationRate} | ${geminiSummary.categoryMismatchRate} | ${geminiSummary.avgLatencyMs}ms | $${geminiSummary.avgCostUsd} | ${geminiSummary.errors} |
+| Mistral Small | ${mistralSummary.total}/${TEST_CASES.length} | ${mistralSummary.schemaViolationRate} | ${mistralSummary.categoryMismatchRate} | ${mistralSummary.avgLatencyMs}ms | $${mistralSummary.avgCostUsd} | ${mistralSummary.errors} |
+
+\\* calcolate solo sulle chiamate completate con successo — un errore di rete/quota non è una violazione
+di schema del modello, le due cose sono tenute separate apposta.
+
+Nota: "mismatch categoria attesa" confronta \`safety_category\` restituita con quella attesa dal caso di test
+(giudizio euristico di chi ha scritto i casi, non una verità assoluta — utile per vedere dove i due modelli
+divergono, specialmente sui casi diagnosis_treatment/concerning_signal dove essere troppo permissivi è il
+rischio reale).
+
+## Dettaglio per caso
+
+| Caso | Provider | Categoria attesa | Categoria ottenuta | Match | Schema valido | Latenza | Costo |
+|---|---|---|---|---|---|---|---|
+${results.map((r) =>
+  `| ${r.caseId} | ${r.provider} | ${r.expectedCategory ?? "-"} | ${r.returnedCategory ?? "-"} | ${r.categoryMatches ?? "-"} | ${r.schemaValid} | ${r.latencyMs}ms | ${r.costUsd?.toFixed(6) ?? "-"} |`
+).join("\n")}
+`;
+}
+
+function buildCsv(results: RunResult[]): string {
+  const header = "provider,case_id,expected_category,returned_category,category_matches,schema_valid,schema_error,latency_ms,token_input,token_output,cost_usd,error";
+  const rows = results.map((r) =>
     [
       r.provider,
       r.caseId,
@@ -439,50 +553,145 @@ async function main() {
       (r.error ?? "").replace(/,/g, ";"),
     ].join(",")
   );
-  await Deno.writeTextFile(`${outDir}/results_${timestamp}.csv`, [csvHeader, ...csvRows].join("\n"));
+  return [header, ...rows].join("\n");
+}
 
-  const md = `# Benchmark: Gemini Flash vs Mistral Small
+async function runProvider(
+  provider: Provider,
+  apiKey: string,
+  checkpoint: Checkpoint,
+  runFn: (tc: TestCase, key: string) => Promise<RunResult | null>,
+): Promise<void> {
+  const already = checkpoint[provider];
+  const remaining = TEST_CASES.filter((tc) => !(tc.id in already));
 
-Data: ${timestamp}
-Casi di test: ${TEST_CASES.length} (vedi \`benchmark_providers.ts\`)
+  if (remaining.length === 0) {
+    console.log(`[${provider}] checkpoint already complete: ${TEST_CASES.length}/${TEST_CASES.length}.`);
+    return;
+  }
 
-## Riepilogo
+  console.log(`[${provider}] ${Object.keys(already).length}/${TEST_CASES.length} already checkpointed, running ${remaining.length} more.`);
 
-| Provider | Violazioni schema* | Mismatch categoria attesa* | Latenza media | Costo medio/richiesta | Errori (rete/quota) |
-|---|---|---|---|---|---|
-| Gemini Flash | ${geminiSummary.schemaViolationRate} | ${geminiSummary.categoryMismatchRate} | ${geminiSummary.avgLatencyMs}ms | $${geminiSummary.avgCostUsd} | ${geminiSummary.errors}/${geminiSummary.total} |
-| Mistral Small | ${mistralSummary.schemaViolationRate} | ${mistralSummary.categoryMismatchRate} | ${mistralSummary.avgLatencyMs}ms | $${mistralSummary.avgCostUsd} | ${mistralSummary.errors}/${mistralSummary.total} |
+  for (const testCase of remaining) {
+    console.log(`[${provider}] running case: ${testCase.id}`);
+    const result = await runFn(testCase, apiKey);
 
-\\* calcolate solo sulle chiamate completate con successo (${geminiSummary.completedCalls}/${geminiSummary.total} per Gemini,
-${mistralSummary.completedCalls}/${mistralSummary.total} per Mistral) — un errore di rete/quota non è una violazione
-di schema del modello, le due cose sono tenute separate apposta.
+    if (result === null) {
+      const missing = TEST_CASES.length - Object.keys(already).length;
+      console.log(
+        `[${provider}] daily quota exhausted — stopping this provider for today. ` +
+        `${missing} case(s) still missing. Re-run tomorrow to continue.`,
+      );
+      return;
+    }
 
-Nota: "mismatch categoria attesa" confronta \`safety_category\` restituita con quella attesa dal caso di test
-(giudizio euristico di chi ha scritto i casi, non una verità assoluta — utile per vedere dove i due modelli
-divergono, specialmente sui casi diagnosis_treatment/concerning_signal dove essere troppo permissivi è il
-rischio reale).
-${geminiSummary.errors > 0 || mistralSummary.errors > 0
-  ? `\n**Nota operativa:** ${geminiSummary.errors} chiamate Gemini e ${mistralSummary.errors} chiamate Mistral ` +
-    `sono fallite per errori di rete/rate-limit/quota (vedi colonna \`error\` nel CSV per il dettaglio, es. ` +
-    `\`HTTP 429\`). Il free tier di Gemini per questo modello ha un limite di sole 20 richieste **al giorno** per ` +
-    `progetto — un vincolo operativo reale, scoperto eseguendo questo stesso benchmark, non un difetto dello ` +
-    `script o del modello. Per un run completo e pulito servono più giorni (per restare nel free tier) o una ` +
-    `chiave a pagamento.`
-  : ""}
+    if (!result.error) {
+      already[testCase.id] = result;
+      await saveCheckpoint(checkpoint);
+    } else {
+      console.log(`[${provider}] case ${testCase.id} failed (${result.error}), will retry next run.`);
+    }
 
-## Dettaglio per caso
+    // Small gap between cases to stay under per-minute rate limits.
+    await new Promise((resolve) => setTimeout(resolve, 4000));
+  }
 
-| Caso | Provider | Categoria attesa | Categoria ottenuta | Match | Schema valido | Latenza | Costo |
-|---|---|---|---|---|---|---|---|
-${results.map((r) =>
-  `| ${r.caseId} | ${r.provider} | ${r.expectedCategory ?? "-"} | ${r.returnedCategory ?? "-"} | ${r.categoryMatches ?? "-"} | ${r.schemaValid} | ${r.latencyMs}ms | ${r.costUsd?.toFixed(6) ?? "-"} |`
-).join("\n")}
-`;
-  await Deno.writeTextFile(`${outDir}/results_${timestamp}.md`, md);
+  const missing = TEST_CASES.length - Object.keys(already).length;
+  if (missing > 0) {
+    console.log(`[${provider}] finished this run with ${missing} case(s) still missing.`);
+  } else {
+    console.log(`[${provider}] complete: ${TEST_CASES.length}/${TEST_CASES.length}.`);
+  }
+}
+
+function checkpointToResults(checkpoint: Checkpoint): RunResult[] {
+  return [...Object.values(checkpoint.gemini), ...Object.values(checkpoint.mistral)];
+}
+
+async function writeReportOnly() {
+  const checkpoint = await loadCheckpoint();
+  await seedFromLegacyResults(checkpoint);
+
+  const geminiMissing = TEST_CASES.length - Object.keys(checkpoint.gemini).length;
+  const mistralMissing = TEST_CASES.length - Object.keys(checkpoint.mistral).length;
+
+  if (geminiMissing > 0 || mistralMissing > 0) {
+    console.error(
+      `Not complete yet — gemini missing ${geminiMissing}/${TEST_CASES.length}, ` +
+      `mistral missing ${mistralMissing}/${TEST_CASES.length}. ` +
+      `Run without --report to keep filling the checkpoint; final report is only written at 15/15 for both.`,
+    );
+    Deno.exit(1);
+  }
+
+  const results = checkpointToResults(checkpoint);
+  const md = buildMarkdown(results, {
+    title: "Benchmark: Gemini Flash vs Mistral Small (final)",
+    note: "Confronto completo, entrambi i provider a 15/15 — dati raccolti su più giorni per restare " +
+      "nel free tier di Gemini (limite di 20 richieste/giorno per progetto) e uniti da `checkpoint.json`.",
+    complete: true,
+  });
+  const csv = buildCsv(results);
+
+  await Deno.mkdir(OUT_DIR, { recursive: true });
+  await Deno.writeTextFile(`${OUT_DIR}/final_comparison.md`, md);
+  await Deno.writeTextFile(`${OUT_DIR}/final_comparison.csv`, csv);
+  console.log(`Both providers complete. Final comparison written to ${OUT_DIR}/final_comparison.{md,csv}`);
+}
+
+async function runAndSnapshot() {
+  const geminiKey = Deno.env.get("GEMINI_API_KEY");
+  const mistralKey = Deno.env.get("MISTRAL_API_KEY");
+
+  if (!geminiKey || !mistralKey) {
+    console.error("Set GEMINI_API_KEY and MISTRAL_API_KEY environment variables before running.");
+    Deno.exit(1);
+  }
+
+  const checkpoint = await loadCheckpoint();
+  await seedFromLegacyResults(checkpoint);
+
+  await Promise.all([
+    runProvider("gemini", geminiKey, checkpoint, runGemini),
+    runProvider("mistral", mistralKey, checkpoint, runMistral),
+  ]);
+
+  const results = checkpointToResults(checkpoint);
+  const geminiDone = Object.keys(checkpoint.gemini).length;
+  const mistralDone = Object.keys(checkpoint.mistral).length;
+  const complete = geminiDone === TEST_CASES.length && mistralDone === TEST_CASES.length;
+
+  const timestamp = new Date().toISOString().slice(0, 10);
+  const md = buildMarkdown(results, {
+    title: "Benchmark: Gemini Flash vs Mistral Small (progress snapshot)",
+    note: complete
+      ? "Entrambi i provider sono completi — rilancia con `--report` per generare il confronto finale " +
+        "in `final_comparison.md`, esplicitamente su basi comparabili."
+      : `Snapshot parziale: Gemini ${geminiDone}/${TEST_CASES.length}, Mistral ${mistralDone}/${TEST_CASES.length}. ` +
+        "Rilancia lo script (anche in giorni successivi) per continuare a riempire il checkpoint — i casi " +
+        "già completati non vengono ripetuti.",
+    complete,
+  });
+  const csv = buildCsv(results);
+
+  await Deno.mkdir(OUT_DIR, { recursive: true });
+  await Deno.writeTextFile(`${OUT_DIR}/results_${timestamp}.md`, md);
+  await Deno.writeTextFile(`${OUT_DIR}/results_${timestamp}.csv`, csv);
 
   console.log("\n--- Summary ---");
-  console.table([geminiSummary, mistralSummary]);
-  console.log(`\nResults written to ${outDir}/results_${timestamp}.{csv,md}`);
+  console.table([summarize(results, "gemini"), summarize(results, "mistral")]);
+  console.log(`\nSnapshot written to ${OUT_DIR}/results_${timestamp}.{csv,md}`);
+  if (complete) {
+    console.log(`Both providers complete — run with --report to produce ${OUT_DIR}/final_comparison.{md,csv}.`);
+  }
+}
+
+async function main() {
+  if (Deno.args.includes("--report")) {
+    await writeReportOnly();
+  } else {
+    await runAndSnapshot();
+  }
 }
 
 await main();
