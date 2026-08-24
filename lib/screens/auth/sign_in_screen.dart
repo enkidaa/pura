@@ -4,6 +4,19 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../services/auth_service.dart';
 import '../../services/settings_service.dart';
 
+/// Kept simple on purpose — a personal app doesn't need an enterprise
+/// password policy, just enough to rule out trivially weak passwords.
+/// Only enforced at signup; an existing password at login isn't re-judged.
+String? _passwordValidationError(String password) {
+  if (password.length < 8) return 'Almeno 8 caratteri.';
+  final hasLetter = RegExp(r'[a-zA-Z]').hasMatch(password);
+  final hasDigitOrSpecial = RegExp(r'[0-9!@#$%^&*(),.?":{}|<>_\-+=\[\]~`/\\;]').hasMatch(password);
+  if (!hasLetter || !hasDigitOrSpecial) {
+    return 'Almeno una lettera e un numero o carattere speciale.';
+  }
+  return null;
+}
+
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});
 
@@ -30,6 +43,14 @@ class _SignInScreenState extends State<SignInScreen> {
   }
 
   Future<void> _submit() async {
+    if (_isSignUp) {
+      final passwordError = _passwordValidationError(_passwordController.text);
+      if (passwordError != null) {
+        setState(() => _errorMessage = passwordError);
+        return;
+      }
+    }
+
     setState(() {
       _loading = true;
       _errorMessage = null;
@@ -89,8 +110,24 @@ class _SignInScreenState extends State<SignInScreen> {
                 TextField(
                   controller: _passwordController,
                   obscureText: true,
+                  onChanged: _isSignUp ? (_) => setState(() {}) : null,
                   decoration: const InputDecoration(labelText: 'Password'),
                 ),
+                if (_isSignUp && _passwordController.text.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Builder(builder: (context) {
+                    final error = _passwordValidationError(_passwordController.text);
+                    return Text(
+                      error ?? 'Password valida.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: error == null
+                            ? Colors.green
+                            : Theme.of(context).colorScheme.error,
+                      ),
+                    );
+                  }),
+                ],
                 if (_isSignUp) ...[
                   const SizedBox(height: 12),
                   TextField(
