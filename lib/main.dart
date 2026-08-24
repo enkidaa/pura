@@ -7,6 +7,7 @@ import 'app_theme.dart';
 import 'l10n/app_locale.dart';
 import 'l10n/app_strings.dart';
 import 'screens/auth/auth_gate.dart';
+import 'services/notification_service.dart';
 import 'services/supabase_config.dart';
 
 Future<void> main() async {
@@ -15,6 +16,7 @@ Future<void> main() async {
     url: supabaseUrl,
     publishableKey: supabasePublishableKey,
   );
+  await NotificationService.init();
   runApp(const PuraApp());
 }
 
