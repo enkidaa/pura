@@ -163,22 +163,125 @@ class _CycleScreenState extends State<CycleScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  Text('CRONOLOGIA', style: theme.textTheme.labelMedium),
+                  Text('I TUOI CICLI', style: theme.textTheme.labelMedium),
                   const SizedBox(height: 10),
                   if (_history.isEmpty)
                     Text(
                       'Nessun ciclo registrato ancora.',
                       style: theme.textTheme.bodySmall,
                     )
-                  else
-                    ..._history.map((date) => AppCard(
-                          padding: EdgeInsets.zero,
-                          blur: 0,
-                          child: ListTile(title: Text(_formatDate(date))),
-                        )),
+                  else ...[
+                    Text(
+                      'Le stime di durata mestruale e finestra fertile sono indicative, non '
+                      'misurate — quest\'app registra solo la data di inizio. Non usarle come '
+                      'metodo contraccettivo.',
+                      style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.outline),
+                    ),
+                    const SizedBox(height: 16),
+                    Builder(builder: (context) {
+                      final entries = CycleHistoryEntry.fromStartsDescending(_history);
+                      return AppCard(
+                        blur: 0,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            for (var i = 0; i < entries.length; i++) ...[
+                              _CycleHistoryRow(entry: entries[i], formatDate: _formatDate),
+                              if (i < entries.length - 1)
+                                const Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 14),
+                                  child: Divider(height: 1),
+                                ),
+                            ],
+                          ],
+                        ),
+                      );
+                    }),
+                  ],
                 ],
               ),
       ),
+    );
+  }
+}
+
+/// A single cycle's row in the history list: title + estimated period
+/// length + a day-by-day indicator strip.
+class _CycleHistoryRow extends StatelessWidget {
+  const _CycleHistoryRow({required this.entry, required this.formatDate});
+
+  final CycleHistoryEntry entry;
+  final String Function(DateTime) formatDate;
+
+  String _formatShort(DateTime date) {
+    const months = [
+      'gen', 'feb', 'mar', 'apr', 'mag', 'giu',
+      'lug', 'ago', 'set', 'ott', 'nov', 'dic',
+    ];
+    return '${date.day} ${months[date.month - 1]}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final title = entry.isCurrent
+        ? 'Ciclo corrente: iniziato il ${formatDate(entry.startDate)} (${entry.totalLengthDays} giorni)'
+        : '${entry.totalLengthDays} giorni: ${_formatShort(entry.startDate)} - '
+            '${_formatShort(entry.endDateExclusive.subtract(const Duration(days: 1)))}';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: theme.textTheme.titleMedium),
+        const SizedBox(height: 2),
+        Text(
+          'Mestruazione stimata di ${entry.estimatedPeriodLengthDays} giorni',
+          style: theme.textTheme.bodySmall,
+        ),
+        const SizedBox(height: 10),
+        _CycleDayIndicatorRow(entry: entry),
+      ],
+    );
+  }
+}
+
+/// One segment per day of the cycle — colored for the estimated period and
+/// estimated fertile window, faint for every other day. Uses the theme's
+/// own primary/secondary accents, never a literal red/blue.
+class _CycleDayIndicatorRow extends StatelessWidget {
+  const _CycleDayIndicatorRow({required this.entry});
+
+  final CycleHistoryEntry entry;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    // Clamped defensively — a data-entry mistake (e.g. two start dates
+    // logged a year apart) shouldn't render hundreds of slivers.
+    final totalDays = entry.totalLengthDays.clamp(1, 60);
+    final fertileEnd = entry.estimatedFertileWindowStartDay + entry.estimatedFertileWindowLengthDays;
+
+    return Row(
+      children: List.generate(totalDays, (i) {
+        final day = i + 1;
+        final Color color;
+        if (day <= entry.estimatedPeriodLengthDays) {
+          color = scheme.primary;
+        } else if (day >= entry.estimatedFertileWindowStartDay && day < fertileEnd) {
+          color = scheme.secondary;
+        } else {
+          color = scheme.outlineVariant;
+        }
+        return Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 1),
+            child: Container(
+              height: 8,
+              decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(4)),
+            ),
+          ),
+        );
+      }),
     );
   }
 }
