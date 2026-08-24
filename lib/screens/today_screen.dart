@@ -379,6 +379,11 @@ class _TodayScreenState extends State<TodayScreen> {
       return;
     }
 
+    if (mounted && log.source != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Importato da: ${log.source}')),
+      );
+    }
     _saveSleep(log.bedtime, log.wakeTime);
   }
 

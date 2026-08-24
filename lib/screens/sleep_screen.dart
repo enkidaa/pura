@@ -137,6 +137,11 @@ class _SleepScreenState extends State<SleepScreen> {
       _showError(strings.nessunDatoSonnoInSalute);
       return;
     }
+    if (mounted && log.source != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Importato da: ${log.source}')),
+      );
+    }
     await _save(log.bedtime, log.wakeTime);
   }
 

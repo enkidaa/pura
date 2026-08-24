@@ -22,8 +22,26 @@ class HealthService {
 
     if (data.isEmpty) return null;
 
-    data.sort((a, b) => a.dateFrom.compareTo(b.dateFrom));
-    return SleepLog(bedtime: data.first.dateFrom, wakeTime: data.last.dateTo);
+    // Sleep data in Salute is a blend of whatever wrote it — Apple Watch's
+    // motion-based auto-detection, the Orologio app's deliberate Programma
+    // sonno, or a third-party app. Blending every source's samples into one
+    // min/max window means one noisy source (e.g. a Watch nap) can distort
+    // the whole night. When Orologio's own data is present, prefer it alone
+    // — it's the one source based on a schedule the user actually set, not
+    // an inference. `sourceId` is the writing app's bundle id (stable
+    // across device language, unlike the human-readable `sourceName`);
+    // `com.apple.mobiletimer` is Orologio/Clock's.
+    final clockSource = data.where(
+      (d) => d.sourceId.toLowerCase().contains('mobiletimer'),
+    ).toList();
+    final chosen = clockSource.isNotEmpty ? clockSource : data;
+
+    chosen.sort((a, b) => a.dateFrom.compareTo(b.dateFrom));
+    return SleepLog(
+      bedtime: chosen.first.dateFrom,
+      wakeTime: chosen.last.dateTo,
+      source: chosen.first.sourceName,
+    );
   }
 
   Future<bool> requestMenstrualAuthorization() async {
