@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../app_theme.dart';
+import '../l10n/app_strings.dart';
 import '../models/routine_step.dart';
 
 const _shortLabels = {
@@ -16,70 +17,62 @@ const _shortLabels = {
 };
 
 /// The "Ritual" — a circular pick of the day's routine steps around a
-/// center completion ring, replacing a plain checklist. Calm and quiet on
-/// purpose: no bounce, only short fades on selection.
-class RitualOrbit extends StatefulWidget {
-  const RitualOrbit({super.key, required this.steps, required this.completedIds, required this.onToggle});
+/// center completion ring, replacing a plain checklist. Tap opens the
+/// step's detail screen; double-tap is a quick done/undo shortcut that
+/// doesn't leave the orbit. Calm and quiet on purpose: no bounce.
+class RitualOrbit extends StatelessWidget {
+  const RitualOrbit({
+    super.key,
+    required this.steps,
+    required this.completedIds,
+    required this.onToggle,
+    required this.onOpenDetail,
+  });
 
   final List<RoutineStep> steps;
   final Set<String> completedIds;
   final ValueChanged<RoutineStep> onToggle;
-
-  @override
-  State<RitualOrbit> createState() => _RitualOrbitState();
-}
-
-class _RitualOrbitState extends State<RitualOrbit> {
-  int _index = 0;
+  final ValueChanged<RoutineStep> onOpenDetail;
 
   @override
   Widget build(BuildContext context) {
-    final steps = widget.steps;
     if (steps.isEmpty) return const SizedBox.shrink();
 
     final scheme = Theme.of(context).colorScheme;
     final tokens = Theme.of(context).extension<CircadianTokens>()!;
     final theme = Theme.of(context);
-    final current = steps[_index % steps.length];
-    final done = widget.completedIds.contains(current.id);
-    final doneCount = steps.where((s) => widget.completedIds.contains(s.id)).length;
+    final strings = AppStrings.of(context);
+    final doneCount = steps.where((s) => completedIds.contains(s.id)).length;
 
     return Column(
       children: [
         SizedBox(
-          width: 280,
-          height: 280,
+          width: 320,
+          height: 320,
           child: Stack(
             alignment: Alignment.center,
             children: [
               ...List.generate(steps.length, (i) {
                 final angle = (i * (360 / steps.length) - 90) * math.pi / 180;
-                const radius = 108.0;
-                final active = i == _index;
-                final on = widget.completedIds.contains(steps[i].id);
-                return AnimatedPositioned(
-                  duration: const Duration(milliseconds: 220),
-                  curve: Curves.easeOut,
-                  left: 140 + radius * math.cos(angle) - 27,
-                  top: 140 + radius * math.sin(angle) - 27,
+                const radius = 122.0;
+                final on = completedIds.contains(steps[i].id);
+                return Positioned(
+                  left: 160 + radius * math.cos(angle) - 35,
+                  top: 160 + radius * math.sin(angle) - 35,
                   child: GestureDetector(
-                    onTap: () => setState(() => _index = i),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 220),
-                      width: 54,
-                      height: 54,
+                    onTap: () => onOpenDetail(steps[i]),
+                    onDoubleTap: () => onToggle(steps[i]),
+                    child: Container(
+                      width: 70,
+                      height: 70,
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: active
-                            ? scheme.primary.withValues(alpha: 0.3)
-                            : on
-                                ? tokens.accent2.withValues(alpha: 0.22)
-                                : scheme.surface.withValues(alpha: tokens.surfaceAlpha * 0.7),
+                        color: on
+                            ? tokens.accent2.withValues(alpha: 0.22)
+                            : scheme.surface.withValues(alpha: tokens.surfaceAlpha * 0.7),
                         border: Border.all(
-                          color: scheme.outlineVariant.withValues(
-                            alpha: active ? tokens.borderAlpha * 1.4 : tokens.borderAlpha * 0.8,
-                          ),
+                          color: scheme.outlineVariant.withValues(alpha: tokens.borderAlpha * 0.8),
                         ),
                       ),
                       child: Text(
@@ -87,8 +80,8 @@ class _RitualOrbitState extends State<RitualOrbit> {
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontFamily: 'Inter',
-                          fontSize: 10,
-                          color: active ? scheme.onSurface : (on ? scheme.onSurfaceVariant : scheme.outline),
+                          fontSize: 13,
+                          color: on ? scheme.onSurfaceVariant : scheme.outline,
                         ),
                       ),
                     ),
@@ -96,8 +89,8 @@ class _RitualOrbitState extends State<RitualOrbit> {
                 );
               }),
               SizedBox(
-                width: 126,
-                height: 126,
+                width: 140,
+                height: 140,
                 child: CustomPaint(
                   painter: _RingPainter(
                     progress: doneCount / steps.length,
@@ -122,7 +115,7 @@ class _RitualOrbitState extends State<RitualOrbit> {
                           ),
                         ),
                         const SizedBox(height: 2),
-                        Text('COMPLETI', style: theme.textTheme.labelSmall),
+                        Text(strings.completi, style: theme.textTheme.labelSmall),
                       ],
                     ),
                   ),
@@ -131,39 +124,11 @@ class _RitualOrbitState extends State<RitualOrbit> {
             ],
           ),
         ),
-        const SizedBox(height: 22),
-        AnimatedSwitcher(
-          duration: const Duration(milliseconds: 200),
-          child: Column(
-            key: ValueKey(current.id),
-            children: [
-              Text(current.title.toUpperCase(), textAlign: TextAlign.center, style: theme.textTheme.labelMedium),
-              const SizedBox(height: 10),
-              Text('${current.durationMinutes} min', style: theme.textTheme.headlineSmall),
-            ],
-          ),
-        ),
         const SizedBox(height: 18),
-        Row(
-          children: [
-            Expanded(
-              child: FilledButton(
-                onPressed: () => widget.onToggle(current),
-                style: done
-                    ? FilledButton.styleFrom(
-                        backgroundColor: tokens.accent2.withValues(alpha: 0.28),
-                        foregroundColor: scheme.onSurface,
-                      )
-                    : null,
-                child: Text(done ? 'Fatto' : 'Segna come fatto'),
-              ),
-            ),
-            const SizedBox(width: 10),
-            OutlinedButton(
-              onPressed: () => setState(() => _index = (_index + 1) % steps.length),
-              child: const Text('Avanti'),
-            ),
-          ],
+        Text(
+          strings.doppioTapSegna,
+          textAlign: TextAlign.center,
+          style: theme.textTheme.bodySmall,
         ),
       ],
     );

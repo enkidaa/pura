@@ -1,9 +1,9 @@
 import 'dart:math' as math;
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
 import '../app_theme.dart';
+import '../l10n/app_locale.dart';
 import '../services/settings_service.dart';
 import '../widgets/ambient_background.dart';
 import '../widgets/grain_overlay.dart';
@@ -41,8 +41,9 @@ class _HomeShellState extends State<HomeShell> {
     try {
       final settings = await SettingsService().loadSettings();
       themeModeNotifier.value = settings.themeMode;
+      appLocaleNotifier.value = localeFromCode(settings.language);
     } catch (_) {
-      // Keep default (system) theme if this fails.
+      // Keep defaults (system theme, Italian) if this fails.
     }
   }
 
@@ -52,8 +53,8 @@ class _HomeShellState extends State<HomeShell> {
       extendBody: true,
       body: Stack(
         children: [
-          const Positioned.fill(child: AmbientBackground()),
-          const Positioned.fill(child: GrainTexture()),
+          const Positioned.fill(child: RepaintBoundary(child: AmbientBackground())),
+          const Positioned.fill(child: RepaintBoundary(child: GrainTexture())),
           _screens[_currentIndex],
         ],
       ),
@@ -101,33 +102,32 @@ class _GlassNavBarState extends State<_GlassNavBar> with SingleTickerProviderSta
     final tokens = Theme.of(context).extension<CircadianTokens>()!;
     final reduceMotion = MediaQuery.of(context).disableAnimations;
 
-    return ClipRect(
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
-        child: Container(
-          decoration: BoxDecoration(
-            color: scheme.surface.withValues(alpha: tokens.navOpacity),
-            border: Border(top: BorderSide(color: tokens.hairline)),
-          ),
-          child: SafeArea(
-            top: false,
-            child: SizedBox(
-              height: 64,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: List.generate(_GlassNavBar.labels.length, (i) {
-                  final active = i == widget.currentIndex;
-                  return _NavTarget(
-                    label: _GlassNavBar.labels[i],
-                    active: active,
-                    color: active ? scheme.primary : scheme.outline,
-                    pulse: _pulse,
-                    reduceMotion: reduceMotion,
-                    onTap: () => widget.onSelect(i),
-                  );
-                }),
-              ),
-            ),
+    // No BackdropFilter here anymore — this bar is always on screen, so a
+    // real blur would have to re-sample its backdrop on every scroll frame
+    // of whatever's underneath it, forever. A flat translucent fill reads
+    // almost the same and costs nothing.
+    return Container(
+      decoration: BoxDecoration(
+        color: scheme.surface.withValues(alpha: tokens.navOpacity),
+        border: Border(top: BorderSide(color: tokens.hairline)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          height: 64,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: List.generate(_GlassNavBar.labels.length, (i) {
+              final active = i == widget.currentIndex;
+              return _NavTarget(
+                label: _GlassNavBar.labels[i],
+                active: active,
+                color: active ? scheme.primary : scheme.outline,
+                pulse: _pulse,
+                reduceMotion: reduceMotion,
+                onTap: () => widget.onSelect(i),
+              );
+            }),
           ),
         ),
       ),
@@ -178,20 +178,28 @@ class _NavTarget extends StatelessWidget {
             SizedBox(
               width: 3,
               height: 3,
+              // RepaintBoundary is load-bearing here, not decorative: this
+              // dot is the only thing in the whole app still animating
+              // every frame, and it lives inside the nav bar's own
+              // BackdropFilter (blur 30, always on screen). Without the
+              // boundary, every tick forces that blur to recomposite too —
+              // a permanent 60fps cost on every screen in the app.
               child: active
-                  ? AnimatedBuilder(
-                      animation: pulse,
-                      builder: (context, _) {
-                        final opacity = reduceMotion
-                            ? 0.7
-                            : 0.35 + 0.65 * (0.5 - 0.5 * math.cos(pulse.value * 2 * math.pi));
-                        return Opacity(
-                          opacity: opacity,
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-                          ),
-                        );
-                      },
+                  ? RepaintBoundary(
+                      child: AnimatedBuilder(
+                        animation: pulse,
+                        builder: (context, _) {
+                          final opacity = reduceMotion
+                              ? 0.7
+                              : 0.35 + 0.65 * (0.5 - 0.5 * math.cos(pulse.value * 2 * math.pi));
+                          return Opacity(
+                            opacity: opacity,
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+                            ),
+                          );
+                        },
+                      ),
                     )
                   : null,
             ),

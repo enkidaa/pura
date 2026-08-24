@@ -1,5 +1,11 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+class RoutineStepSource {
+  const RoutineStepSource({required this.id, required this.text});
+  final String id;
+  final String text;
+}
+
 class RoutineProgressService {
   final _client = Supabase.instance.client;
 
@@ -32,6 +38,58 @@ class RoutineProgressService {
           .eq('step_id', stepId)
           .eq('completed_on', today);
     }
+  }
+
+  Future<String> loadNote(String stepId) async {
+    final userId = _client.auth.currentUser!.id;
+
+    final rows = await _client
+        .from('routine_step_notes')
+        .select('note')
+        .eq('user_id', userId)
+        .eq('step_id', stepId)
+        .limit(1);
+
+    if (rows.isEmpty) return '';
+    return rows.first['note'] as String? ?? '';
+  }
+
+  Future<void> saveNote(String stepId, String note) async {
+    final userId = _client.auth.currentUser!.id;
+
+    await _client.from('routine_step_notes').upsert(
+      {'user_id': userId, 'step_id': stepId, 'note': note},
+      onConflict: 'user_id,step_id',
+    );
+  }
+
+  Future<List<RoutineStepSource>> loadSources(String stepId) async {
+    final userId = _client.auth.currentUser!.id;
+
+    final rows = await _client
+        .from('routine_step_sources')
+        .select('id, source')
+        .eq('user_id', userId)
+        .eq('step_id', stepId)
+        .order('created_at');
+
+    return rows
+        .map((row) => RoutineStepSource(id: row['id'] as String, text: row['source'] as String))
+        .toList();
+  }
+
+  Future<void> addSource(String stepId, String source) async {
+    final userId = _client.auth.currentUser!.id;
+
+    await _client.from('routine_step_sources').insert({
+      'user_id': userId,
+      'step_id': stepId,
+      'source': source,
+    });
+  }
+
+  Future<void> removeSource(String sourceId) async {
+    await _client.from('routine_step_sources').delete().eq('id', sourceId);
   }
 
   String _todayString() {

@@ -59,8 +59,8 @@ const _morning = _StateTokens(
   btn: Color(0xFF26252F),
   btnFg: Colors.white,
   shadowAlpha: 0.07,
-  shadowBlur: 38,
-  shadowOffsetY: 18,
+  shadowBlur: 14,
+  shadowOffsetY: 8,
   phaseLabel: 'Luce',
 );
 
@@ -83,8 +83,8 @@ const _afternoon = _StateTokens(
   btn: Color(0xFF2A2934),
   btnFg: Color(0xFFFCFBFF),
   shadowAlpha: 0.1,
-  shadowBlur: 40,
-  shadowOffsetY: 18,
+  shadowBlur: 14,
+  shadowOffsetY: 8,
   phaseLabel: 'Sospeso',
 );
 
@@ -107,8 +107,8 @@ const _evening = _StateTokens(
   btn: Color(0xFFEDEAF5),
   btnFg: Color(0xFF17161C),
   shadowAlpha: 0.42,
-  shadowBlur: 46,
-  shadowOffsetY: 22,
+  shadowBlur: 16,
+  shadowOffsetY: 10,
   phaseLabel: 'Notte',
 );
 
@@ -323,8 +323,8 @@ class AppTheme {
       bodyMedium: _inter(fontSize: 13, weight: 400, color: s.inkSoft, height: 1.55),
       bodySmall: _inter(fontSize: 12, weight: 400, color: s.inkSoft, height: 1.45),
       labelLarge: _inter(fontSize: 13, weight: 500, color: s.ink, letterSpacing: 0.2),
-      labelMedium: _inter(fontSize: 10.5, weight: 400, color: s.inkFaint, letterSpacing: 2.2),
-      labelSmall: _inter(fontSize: 9.5, weight: 400, color: s.inkFaint, letterSpacing: 2.4),
+      labelMedium: _inter(fontSize: 12.5, weight: 450, color: s.inkFaint, letterSpacing: 1.8),
+      labelSmall: _inter(fontSize: 11, weight: 450, color: s.inkFaint, letterSpacing: 2),
     );
 
     const pillShape = StadiumBorder();

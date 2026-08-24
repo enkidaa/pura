@@ -1,15 +1,19 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 
 import '../app_theme.dart';
 
-/// Frosted-glass panel — real backdrop blur + translucent tint + a hairline
-/// light-catching edge, in the spirit of iOS's Liquid Glass. Reads its
-/// alpha/shadow from CircadianTokens instead of hardcoding them, so it
-/// rides the same wake-to-night curve as the rest of the UI. Needs
-/// something with color behind it (see AmbientBackground) or the blur has
-/// nothing to refract.
+/// Translucent panel with a hairline light-catching edge. Reads its
+/// alpha/shadow from CircadianTokens so it rides the same wake-to-night
+/// curve as the rest of the UI.
+///
+/// Used to be real BackdropFilter blur (frosted glass) — dropped entirely.
+/// BackdropFilter forces a GPU re-sample of whatever's behind it on every
+/// frame the backdrop changes (any scroll, any animation anywhere in the
+/// same layer), and this widget is used dozens of times per screen. With
+/// that many instances it made the whole app feel mechanical/laggy even
+/// after cutting most instances down — removing it outright is what
+/// actually fixed it. [blur] is kept as a no-op parameter so existing call
+/// sites don't need touching.
 class AppCard extends StatelessWidget {
   const AppCard({
     super.key,
@@ -17,7 +21,7 @@ class AppCard extends StatelessWidget {
     this.padding = const EdgeInsets.all(16),
     this.margin = const EdgeInsets.only(bottom: 12),
     this.gradient,
-    this.blur = 24,
+    this.blur = 0,
   });
 
   final Widget child;
@@ -32,22 +36,26 @@ class AppCard extends StatelessWidget {
     final tokens = Theme.of(context).extension<CircadianTokens>()!;
     const radius = 26.0;
 
-    return Container(
-      margin: margin,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(radius),
-        boxShadow: [
-          BoxShadow(
-            color: tokens.shadowColor,
-            blurRadius: tokens.shadowBlur,
-            offset: Offset(0, tokens.shadowOffsetY),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(radius),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+    // RepaintBoundary: this card is almost always one of several siblings
+    // in a scrolling list. Without its own layer, every card repaints
+    // whenever any one of them does (Flutter repaints per-layer, not
+    // per-widget) — isolating each card keeps a scroll frame's repaint
+    // cost limited to whichever cards actually changed.
+    return RepaintBoundary(
+      child: Container(
+        margin: margin,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(radius),
+          boxShadow: [
+            BoxShadow(
+              color: tokens.shadowColor,
+              blurRadius: tokens.shadowBlur,
+              offset: Offset(0, tokens.shadowOffsetY),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(radius),
           child: Container(
             padding: padding,
             decoration: BoxDecoration(
