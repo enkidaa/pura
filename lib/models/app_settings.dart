@@ -13,6 +13,7 @@ class AppSettings {
     required this.sex,
     required this.fastingEnabled,
     required this.nickname,
+    required this.birthDate,
   });
 
   final ThemeMode themeMode;
@@ -23,6 +24,11 @@ class AppSettings {
   final bool fastingEnabled;
   final String? nickname;
 
+  /// Opt-in. Only used server-side, to compute chronological age for the
+  /// PhenoAge biological-age estimate in focus-del-giorno — the formula
+  /// itself needs it as an input, not just for display.
+  final DateTime? birthDate;
+
   static const defaults = AppSettings(
     themeMode: ThemeMode.system,
     language: 'it',
@@ -31,6 +37,7 @@ class AppSettings {
     sex: UserSex.unspecified,
     fastingEnabled: false,
     nickname: null,
+    birthDate: null,
   );
 
   AppSettings copyWith({
@@ -41,6 +48,7 @@ class AppSettings {
     UserSex? sex,
     bool? fastingEnabled,
     String? nickname,
+    DateTime? birthDate,
   }) {
     return AppSettings(
       themeMode: themeMode ?? this.themeMode,
@@ -50,6 +58,7 @@ class AppSettings {
       sex: sex ?? this.sex,
       fastingEnabled: fastingEnabled ?? this.fastingEnabled,
       nickname: nickname ?? this.nickname,
+      birthDate: birthDate ?? this.birthDate,
     );
   }
 }

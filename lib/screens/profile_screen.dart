@@ -104,6 +104,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
     await _save(() => _settingsService.saveEveningRitualTime(picked));
   }
 
+  Future<void> _pickBirthDate() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _settings.birthDate ?? DateTime(now.year - 30),
+      firstDate: DateTime(now.year - 120),
+      lastDate: now,
+      helpText: 'Data di nascita',
+    );
+    if (picked == null) return;
+
+    setState(() => _settings = _settings.copyWith(birthDate: picked));
+    await _save(() => _settingsService.saveBirthDate(picked));
+  }
+
   Future<void> _save(Future<void> Function() action) async {
     try {
       await action();
@@ -303,9 +318,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
           const SizedBox(height: 24),
+          Text('DATA DI NASCITA', style: Theme.of(context).textTheme.labelMedium),
+          Text(
+            'Opzionale — serve solo per calcolare l\'età biologica stimata (PhenoAge) da un referto '
+            'del sangue caricato qui sotto. Senza data di nascita, quella stima non può essere calcolata.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton(
+            onPressed: _pickBirthDate,
+            child: Text(
+              _settings.birthDate == null
+                  ? 'Imposta data di nascita'
+                  : _formatDate(_settings.birthDate!),
+            ),
+          ),
+          const SizedBox(height: 24),
           Text('DOCUMENTI PER L\'AI', style: Theme.of(context).textTheme.labelMedium),
           Text(
-            'PDF o foto (es. referto nutrizionale) che il Focus del giorno può leggere.',
+            'PDF o foto (es. referto nutrizionale o del sangue) che il Focus del giorno può leggere.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 8),

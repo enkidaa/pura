@@ -21,6 +21,7 @@ class DiscoverScreen extends StatefulWidget {
 class _DiscoverScreenState extends State<DiscoverScreen> {
   final _focusService = FocusService();
   FocusSuggestion? _focusSuggestion;
+  BiologicalAgeEstimate? _biologicalAge;
   String? _focusError;
   bool _focusLoading = false;
 
@@ -31,9 +32,10 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
     });
 
     try {
-      final suggestion = await _focusService.getFocusDelGiorno();
+      final result = await _focusService.getFocusDelGiorno();
       setState(() {
-        _focusSuggestion = suggestion;
+        _focusSuggestion = result.suggestion;
+        _biologicalAge = result.biologicalAge;
         _focusLoading = false;
       });
     } catch (e) {
@@ -169,6 +171,10 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
             _buildFocusSuggestion(_focusSuggestion!)
           else
             Text(AppStrings.of(context).ancoraNessunConsiglio),
+          if (_biologicalAge != null) ...[
+            const SizedBox(height: 12),
+            _buildBiologicalAge(_biologicalAge!),
+          ],
           const SizedBox(height: 12),
           FilledButton(
             onPressed: _focusLoading ? null : _generateFocus,
@@ -214,6 +220,56 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
           ],
         ),
       ],
+    );
+  }
+
+  /// Deterministic PhenoAge estimate, never LLM-generated — see the edge
+  /// function for why. Always framed as informational/non-diagnostic, and
+  /// always states explicitly what's missing when it couldn't be computed.
+  Widget _buildBiologicalAge(BiologicalAgeEstimate estimate) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('ETÀ BIOLOGICA (PHENOAGE)', style: theme.textTheme.labelMedium),
+          const SizedBox(height: 6),
+          if (estimate.computed)
+            Text(
+              '${estimate.phenotypicAgeYears!.toStringAsFixed(1)} anni stimati '
+              '(età anagrafica ${estimate.chronologicalAgeYears!.toStringAsFixed(1)}) — '
+              'informazione, non una diagnosi.',
+              style: theme.textTheme.bodyMedium,
+            )
+          else
+            Text(
+              estimate.reason ?? 'Stima non calcolabile.',
+              style: theme.textTheme.bodyMedium,
+            ),
+          const SizedBox(height: 6),
+          if (estimate.markersUsed.isNotEmpty)
+            Text(
+              'Biomarcatori usati: ${estimate.markersUsed.join(", ")}.',
+              style: theme.textTheme.bodySmall,
+            ),
+          if (estimate.markersMissing.isNotEmpty)
+            Text(
+              'Mancanti: ${estimate.markersMissing.join(", ")}.',
+              style: theme.textTheme.bodySmall,
+            ),
+          if (estimate.sourceDocument != null)
+            Text(
+              'Fonte: ${estimate.sourceDocument}'
+              '${estimate.sourceDate != null ? " (${estimate.sourceDate})" : ""}.',
+              style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.outline),
+            ),
+        ],
+      ),
     );
   }
 }

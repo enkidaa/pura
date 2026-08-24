@@ -44,13 +44,25 @@ Regole:
 - Se ti viene indicata una preferenza dell'utente su rimedi naturali vs integratori mirati, tienine
   conto quando il consiglio riguarda un rimedio/integratore specifico — non forzarla se il consiglio
   del giorno non c'entra nulla con quell'ambito.
-- Se ti viene indicata la fase del ciclo mestruale, puoi usarla per contestualizzare energia/consigli
-  (es. più riposo in fase mestruale, più energia in fase follicolare/ovulazione) ma solo se pertinente
-  — non è un dato medico su cui basare diagnosi.
+- Se ti viene indicata la fase del ciclo mestruale, trattala come contesto da considerare quando dai un
+  consiglio su energia, allenamento intenso o digiuno — non come regola rigida da applicare sempre.
+  Es.: un digiuno prolungato o un allenamento ad alta intensità possono essere meno indicati in fase
+  luteale/mestruale che in fase follicolare/ovulatoria, e più riposo può avere senso in fase mestruale.
+  Usa questi esempi solo se pertinenti al consiglio che stai per dare — non forzarli, e non è comunque
+  un dato medico su cui basare diagnosi.
 - Potrebbe esserti allegato un documento (es. referto). Decidi tu se è pertinente al consiglio di
   oggi: se lo è, usalo e aggiungi "user_document" a "sources"; se non c'entra nulla con il consiglio
   che stai per dare, IGNORALO — non citarlo, non forzare un collegamento, non spostare il consiglio
   verso un tema medico solo perché il documento esiste.
+- Priorità: sonno > movimento > alimentazione > integratori > protocolli sperimentali/biohacking
+  avanzati. Se il digest indica "Fondamenta di base fuori target" (sonno, routine di base o digiuno),
+  il consiglio di oggi DEVE riguardare quella fondamenta, non un'ottimizzazione più avanzata — anche
+  se ci sono integratori assunti, un documento allegato interessante, o altri dati disponibili.
+  Suggerire un integratore o un protocollo sperimentale a chi dorme poco o salta la routine di base
+  sarebbe come un cattivo coach che salta le basi per la parte più appariscente: non farlo. Se ci sono
+  più fondamenta fuori target, scegli quella più in alto nell'ordine di priorità sopra. Se le fondamenta
+  sono tutte a target (o non c'è abbastanza dato per giudicarle), sei libero di dare il consiglio più
+  rilevante tra tutti i dati disponibili, incluse aree più avanzate.
 - Non inventare dati che non ti sono stati dati.`;
 
 const RESPONSE_SCHEMA = {
@@ -366,6 +378,325 @@ async function applySafetyLayer(
   };
 }
 
+// --- Biological age (PhenoAge) ---------------------------------------------
+// Levine BS, et al. "An epigenetic biomarker of aging for lifespan and
+// healthspan." Aging (Albany NY). 2018;10(4):573-591. PMID 29676998.
+// Formula/coefficients cross-checked against the published correction in
+// Liu Z, et al. PLOS Medicine 2018 (PMID 30596641; correction notice PMCID
+// PMC6388911) and an independent open-source reimplementation
+// (github.com/KyteProject/phenotypic-age-calc) — both agree on every
+// coefficient and on the two-step mortality-score transform below.
+//
+// This is the original blood-biomarker "Phenotypic Age", not the DNAm/
+// epigenetic-clock variant of the same name (that one needs a methylation
+// array, which we don't have).
+//
+// Deliberately NOT computed by the LLM: the 9 biomarker values are
+// extracted from the document by Gemini (a text/vision-reading task, which
+// is what it's good at), but the actual age arithmetic runs here in plain
+// TypeScript. A hallucinated biomarker value or a hallucinated age would
+// both be bad, but only one of those risks is worth taking — extraction
+// errors are visible in `markers_used`/`markers_missing` and self-correct
+// on a clearer document; a silently-wrong LLM-computed age would not be.
+
+type BiomarkerKey =
+  | "albumin"
+  | "creatinine"
+  | "glucose"
+  | "crp"
+  | "lymphocyte_percent"
+  | "mcv"
+  | "rdw"
+  | "alkaline_phosphatase"
+  | "wbc";
+
+const BIOMARKER_KEYS: BiomarkerKey[] = [
+  "albumin",
+  "creatinine",
+  "glucose",
+  "crp",
+  "lymphocyte_percent",
+  "mcv",
+  "rdw",
+  "alkaline_phosphatase",
+  "wbc",
+];
+
+const BIOMARKER_LABELS: Record<BiomarkerKey, string> = {
+  albumin: "Albumina",
+  creatinine: "Creatinina",
+  glucose: "Glicemia",
+  crp: "PCR (proteina C-reattiva)",
+  lymphocyte_percent: "Linfociti (%)",
+  mcv: "MCV (volume corpuscolare medio)",
+  rdw: "RDW (ampiezza di distribuzione eritrocitaria)",
+  alkaline_phosphatase: "Fosfatasi alcalina",
+  wbc: "Globuli bianchi (WBC)",
+};
+
+// Unit strings as they realistically appear on a referto, mapped to the
+// multiplier that converts the extracted value into the unit the formula
+// needs. An unrecognized unit is never guessed at — that marker is treated
+// as missing rather than silently mis-converted, since a wrong conversion
+// here would silently produce a bogus age, which is worse than an honest
+// "not enough data".
+const UNIT_CONVERSIONS: Record<BiomarkerKey, Record<string, number>> = {
+  albumin: { "g/dl": 10, "g/l": 1 }, // -> g/L
+  creatinine: { "mg/dl": 88.401, "umol/l": 1, "µmol/l": 1 }, // -> umol/L
+  glucose: { "mg/dl": 0.0555, "mmol/l": 1 }, // -> mmol/L
+  crp: { "mg/l": 0.1, "mg/dl": 1 }, // -> mg/dL (formula uses ln(CRP mg/dL))
+  lymphocyte_percent: { "%": 1 },
+  mcv: { "fl": 1 },
+  rdw: { "%": 1 },
+  alkaline_phosphatase: { "u/l": 1, "iu/l": 1 },
+  wbc: { "10^3/ul": 1, "10^3/µl": 1, "x10^9/l": 1, "10^9/l": 1, "k/ul": 1 },
+};
+
+function normalizeUnit(raw: string): string {
+  return raw.trim().toLowerCase().replace(/\s+/g, "");
+}
+
+interface ExtractedField {
+  value: number;
+  unit: string;
+}
+
+interface ExtractedBiomarkers {
+  is_blood_panel: boolean;
+  report_date: string | null;
+  [key: string]: unknown;
+}
+
+// Converts each extracted field to the formula's required unit, dropping
+// (not guessing at) anything with an unrecognized unit.
+function normalizeMarkers(extracted: ExtractedBiomarkers): {
+  values: Partial<Record<BiomarkerKey, number>>;
+  used: BiomarkerKey[];
+  missing: BiomarkerKey[];
+} {
+  const values: Partial<Record<BiomarkerKey, number>> = {};
+  const used: BiomarkerKey[] = [];
+  const missing: BiomarkerKey[] = [];
+
+  for (const key of BIOMARKER_KEYS) {
+    const field = extracted[key] as ExtractedField | null | undefined;
+    if (!field || typeof field.value !== "number" || typeof field.unit !== "string") {
+      missing.push(key);
+      continue;
+    }
+    const factor = UNIT_CONVERSIONS[key][normalizeUnit(field.unit)];
+    if (factor === undefined) {
+      missing.push(key);
+      continue;
+    }
+    values[key] = field.value * factor;
+    used.push(key);
+  }
+
+  return { values, used, missing };
+}
+
+const PHENOAGE_INTERCEPT = -19.907;
+const PHENOAGE_COEFFICIENTS: Record<BiomarkerKey, number> = {
+  albumin: -0.0336,
+  creatinine: 0.0095,
+  glucose: 0.1953,
+  crp: 0.0954, // applied to ln(CRP), not CRP directly — see computePhenoAge
+  lymphocyte_percent: -0.0120,
+  mcv: 0.0268,
+  rdw: 0.3306,
+  alkaline_phosphatase: 0.00188,
+  wbc: 0.0554,
+};
+const PHENOAGE_AGE_COEFFICIENT = 0.0804;
+const PHENOAGE_GAMMA = -1.51714;
+const PHENOAGE_LAMBDA = 0.0076927;
+const PHENOAGE_ALPHA = 141.50225;
+const PHENOAGE_BETA = -0.00553;
+const PHENOAGE_FINAL_DIVISOR = 0.09165;
+
+function computePhenoAge(values: Record<BiomarkerKey, number>, chronologicalAgeYears: number): number {
+  let xb = PHENOAGE_INTERCEPT + PHENOAGE_AGE_COEFFICIENT * chronologicalAgeYears;
+  for (const key of BIOMARKER_KEYS) {
+    const v = values[key];
+    xb += PHENOAGE_COEFFICIENTS[key] * (key === "crp" ? Math.log(v) : v);
+  }
+
+  const mortalityScore = 1 - Math.exp((PHENOAGE_GAMMA * Math.exp(xb)) / PHENOAGE_LAMBDA);
+  return PHENOAGE_ALPHA + Math.log(PHENOAGE_BETA * Math.log(1 - mortalityScore)) / PHENOAGE_FINAL_DIVISOR;
+}
+
+const BIOMARKER_FIELD_SCHEMA = {
+  type: "OBJECT",
+  nullable: true,
+  properties: {
+    value: { type: "NUMBER" },
+    unit: { type: "STRING" },
+  },
+  required: ["value", "unit"],
+};
+
+const BIOMARKER_EXTRACTION_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    is_blood_panel: { type: "BOOLEAN" },
+    report_date: { type: "STRING", nullable: true },
+    albumin: BIOMARKER_FIELD_SCHEMA,
+    creatinine: BIOMARKER_FIELD_SCHEMA,
+    glucose: BIOMARKER_FIELD_SCHEMA,
+    crp: BIOMARKER_FIELD_SCHEMA,
+    lymphocyte_percent: BIOMARKER_FIELD_SCHEMA,
+    mcv: BIOMARKER_FIELD_SCHEMA,
+    rdw: BIOMARKER_FIELD_SCHEMA,
+    alkaline_phosphatase: BIOMARKER_FIELD_SCHEMA,
+    wbc: BIOMARKER_FIELD_SCHEMA,
+  },
+  required: ["is_blood_panel"],
+};
+
+const BIOMARKER_EXTRACTION_PROMPT = `Sei un estrattore di dati di laboratorio. Ricevi un documento.
+Il tuo compito, in ordine:
+1. Determina se il documento è un pannello di analisi del sangue (esami ematici/emocromo/analisi cliniche).
+2. Se lo è, estrai SOLO i seguenti valori se presenti nel documento, con il valore numerico e l'unità
+   di misura ESATTAMENTE come scritti nel referto (es. "g/dL", "mg/dL", "mg/L", "fL", "%", "U/L",
+   "10^3/uL") — non convertire le unità, non calcolare nulla, non stimare un valore che non vedi scritto.
+   Se un valore non è nel documento, ometti quel campo.
+   - Albumina
+   - Creatinina
+   - Glicemia
+   - PCR / proteina C-reattiva
+   - Linfociti (%)
+   - MCV (volume corpuscolare medio)
+   - RDW (ampiezza di distribuzione eritrocitaria)
+   - Fosfatasi alcalina
+   - Globuli bianchi / leucociti (WBC)
+3. Se la data del referto è scritta nel documento, riportala così com'è (report_date). Altrimenti null.
+Non inventare mai un valore, un'unità o una data che non sono scritti nel documento.`;
+
+interface BiologicalAgeResult {
+  computed: boolean;
+  phenotypic_age_years?: number;
+  chronological_age_years?: number;
+  markers_used?: string[];
+  markers_missing?: string[];
+  source_document?: string;
+  source_date?: string;
+  reason?: string;
+}
+
+interface BiomarkerExtractionOutcome {
+  result: BiologicalAgeResult | null; // null: no document, or document isn't a blood panel
+  latencyMs: number;
+  tokenInput: number | null;
+  tokenOutput: number | null;
+}
+
+async function extractBiologicalAge(
+  base64Data: string,
+  mimeType: string,
+  documentLabel: string,
+  birthDate: string | null,
+  apiKey: string,
+): Promise<BiomarkerExtractionOutcome> {
+  const startTime = Date.now();
+  try {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{
+            parts: [
+              { text: BIOMARKER_EXTRACTION_PROMPT },
+              { inline_data: { mime_type: mimeType, data: base64Data } },
+            ],
+          }],
+          generationConfig: {
+            responseMimeType: "application/json",
+            responseSchema: BIOMARKER_EXTRACTION_SCHEMA,
+          },
+        }),
+      },
+    );
+    const latencyMs = Date.now() - startTime;
+
+    if (!response.ok) {
+      return { result: null, latencyMs, tokenInput: null, tokenOutput: null };
+    }
+
+    const data = await response.json();
+    const tokenInput = data.usageMetadata?.promptTokenCount ?? null;
+    const tokenOutput = data.usageMetadata?.candidatesTokenCount ?? null;
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    if (typeof text !== "string") {
+      return { result: null, latencyMs, tokenInput, tokenOutput };
+    }
+
+    const extracted = JSON.parse(text) as ExtractedBiomarkers;
+    if (!extracted.is_blood_panel) {
+      return { result: null, latencyMs, tokenInput, tokenOutput };
+    }
+
+    const { values, used, missing } = normalizeMarkers(extracted);
+
+    if (!birthDate) {
+      return {
+        result: {
+          computed: false,
+          markers_used: used.map((k) => BIOMARKER_LABELS[k]),
+          markers_missing: missing.map((k) => BIOMARKER_LABELS[k]),
+          reason: "Manca la data di nascita in Profilo — necessaria per calcolare l'età biologica " +
+            "anche quando tutti i biomarcatori sono disponibili.",
+        },
+        latencyMs,
+        tokenInput,
+        tokenOutput,
+      };
+    }
+
+    const sourceDate = extracted.report_date ?? undefined;
+
+    if (missing.length > 0) {
+      return {
+        result: {
+          computed: false,
+          markers_used: used.map((k) => BIOMARKER_LABELS[k]),
+          markers_missing: missing.map((k) => BIOMARKER_LABELS[k]),
+          source_document: documentLabel,
+          source_date: sourceDate,
+          reason: `Servono tutti e 9 i biomarcatori per una stima PhenoAge — ne mancano ` +
+            `${missing.length} dal documento più recente.`,
+        },
+        latencyMs,
+        tokenInput,
+        tokenOutput,
+      };
+    }
+
+    const chronologicalAgeYears =
+      (Date.now() - new Date(birthDate).getTime()) / (365.25 * 24 * 60 * 60 * 1000);
+    const phenotypicAge = computePhenoAge(values as Record<BiomarkerKey, number>, chronologicalAgeYears);
+
+    return {
+      result: {
+        computed: true,
+        phenotypic_age_years: Math.round(phenotypicAge * 10) / 10,
+        chronological_age_years: Math.round(chronologicalAgeYears * 10) / 10,
+        markers_used: used.map((k) => BIOMARKER_LABELS[k]),
+        source_document: documentLabel,
+        source_date: sourceDate,
+      },
+      latencyMs,
+      tokenInput,
+      tokenOutput,
+    };
+  } catch {
+    return { result: null, latencyMs: Date.now() - startTime, tokenInput: null, tokenOutput: null };
+  }
+}
+
 const MAX_DOCUMENT_BYTES = 15 * 1024 * 1024;
 
 function toBase64(bytes: Uint8Array): string {
@@ -447,6 +778,7 @@ Deno.serve(async (req) => {
     { data: cycleStarts },
     { data: recentSleep },
     { data: supplementIntake },
+    { data: recentFasting },
   ] = await Promise.all([
       supabase
         .from("routine_completions")
@@ -460,7 +792,7 @@ Deno.serve(async (req) => {
         .gte("logged_on", sevenDaysAgo),
       supabase
         .from("profiles")
-        .select("narrative_summary, approach, sex")
+        .select("narrative_summary, approach, sex, birth_date, fasting_enabled")
         .eq("user_id", user.id)
         .maybeSingle(),
       supabase
@@ -478,7 +810,7 @@ Deno.serve(async (req) => {
         .limit(6),
       supabase
         .from("sleep_logs")
-        .select("wake_time")
+        .select("bedtime, wake_time")
         .eq("user_id", user.id)
         .order("sleep_date", { ascending: false })
         .limit(7),
@@ -487,6 +819,12 @@ Deno.serve(async (req) => {
         .select("taken_on, user_supplements(name, category)")
         .eq("user_id", user.id)
         .gte("taken_on", sevenDaysAgo),
+      supabase
+        .from("fasting_logs")
+        .select("log_date, first_meal_time, last_meal_time")
+        .eq("user_id", user.id)
+        .order("log_date", { ascending: false })
+        .limit(7),
     ]);
 
   const stepCounts = new Map<string, number>();
@@ -567,6 +905,78 @@ Deno.serve(async (req) => {
     );
   }
 
+  // --- Foundations check (Bryan Johnson's stated priority order: sleep >
+  // exercise > diet > supplements > experimental) ---------------------------
+  // Recommending an advanced optimization (a supplement, an experimental
+  // protocol) while a basic pillar is clearly off track is the opposite of
+  // what a good coach would do — it's optimizing the margins while ignoring
+  // the foundation. This computes which pillars are off target from data
+  // we already query, and the prompt is told to prioritize *that* over
+  // anything more advanced when one is off. Deliberately not a rules
+  // engine: three simple, transparent checks, not a scored/weighted model.
+  const offTargetFoundations: string[] = [];
+
+  if (recentSleep && recentSleep.length > 0) {
+    const durationsHours = recentSleep
+      .map((row) => {
+        // Same wall-clock-as-UTC interpretation as the variability check
+        // above — both columns are `timestamp` (no timezone).
+        const bed = new Date(row.bedtime).getTime();
+        const wake = new Date(row.wake_time).getTime();
+        return (wake - bed) / (1000 * 60 * 60);
+      })
+      .filter((h) => h > 0 && h < 16); // discard obviously-bad rows, not guess at them
+    if (durationsHours.length > 0) {
+      const avgHours = durationsHours.reduce((a, b) => a + b, 0) / durationsHours.length;
+      if (avgHours < 7) {
+        const h = Math.floor(avgHours);
+        const m = Math.round((avgHours - h) * 60);
+        offTargetFoundations.push(
+          `sonno sotto target (media ${h}h${m}m/notte su ${durationsHours.length} notti tracciate, obiettivo 7-9h)`,
+        );
+      }
+    }
+  }
+
+  if (stepCounts.size === 0) {
+    offTargetFoundations.push("routine mattutina/serale non tracciata negli ultimi 7 giorni");
+  } else {
+    const avgCompletionRate =
+      [...stepCounts.values()].reduce((a, b) => a + b, 0) / (stepCounts.size * 7);
+    if (avgCompletionRate < 0.5) {
+      offTargetFoundations.push(
+        `routine mattutina/serale completata meno della metà dei giorni (${Math.round(avgCompletionRate * 100)}%)`,
+      );
+    }
+  }
+
+  if (profile?.fasting_enabled && recentFasting && recentFasting.length >= 2) {
+    const byDate = [...recentFasting].sort((a, b) => a.log_date.localeCompare(b.log_date));
+    const windowHours: number[] = [];
+    for (let i = 1; i < byDate.length; i++) {
+      const prevLastMeal = byDate[i - 1].last_meal_time;
+      const thisFirstMeal = byDate[i].first_meal_time;
+      if (!prevLastMeal || !thisFirstMeal) continue;
+      const hours = (new Date(thisFirstMeal).getTime() - new Date(prevLastMeal).getTime()) / (1000 * 60 * 60);
+      if (hours > 0 && hours < 30) windowHours.push(hours); // discard bad data, don't guess at it
+    }
+    if (windowHours.length > 0) {
+      const avgWindow = windowHours.reduce((a, b) => a + b, 0) / windowHours.length;
+      if (avgWindow < 12) {
+        offTargetFoundations.push(
+          `finestra di digiuno sotto l'obiettivo (media ${avgWindow.toFixed(1)}h su ${windowHours.length} finestre tracciate, obiettivo 16h)`,
+        );
+      }
+    }
+  }
+
+  if (offTargetFoundations.length > 0) {
+    digestLines.push(
+      ``,
+      `Fondamenta di base fuori target: ${offTargetFoundations.join("; ")}.`,
+    );
+  }
+
   if (supplementIntake && supplementIntake.length > 0) {
     const nameCounts = new Map<string, number>();
     for (const row of supplementIntake) {
@@ -593,6 +1003,8 @@ Deno.serve(async (req) => {
 
   const parts: Record<string, unknown>[] = [{ text: `${SYSTEM_PROMPT}\n\n${digest}` }];
 
+  let documentBase64: string | null = null;
+
   if (latestDocument) {
     const { data: fileBlob, error: downloadError } = await supabase.storage
       .from("user-documents")
@@ -600,8 +1012,9 @@ Deno.serve(async (req) => {
 
     if (!downloadError && fileBlob && fileBlob.size <= MAX_DOCUMENT_BYTES) {
       const bytes = new Uint8Array(await fileBlob.arrayBuffer());
+      documentBase64 = toBase64(bytes);
       parts.push({
-        inline_data: { mime_type: latestDocument.mime_type, data: toBase64(bytes) },
+        inline_data: { mime_type: latestDocument.mime_type, data: documentBase64 },
       });
     }
   }
@@ -613,20 +1026,42 @@ Deno.serve(async (req) => {
 
   const startTime = Date.now();
 
-  const geminiResponse = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${geminiApiKey}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts }],
-        generationConfig: {
-          responseMimeType: "application/json",
-          responseSchema: RESPONSE_SCHEMA,
-        },
-      }),
-    },
-  );
+  // Biomarker extraction reads the same document independently of the main
+  // suggestion generation — it doesn't need the generated observation, so
+  // it runs concurrently rather than after, to not add latency on top of
+  // the main call.
+  const biomarkerExtractionPromise = documentBase64
+    ? extractBiologicalAge(
+      documentBase64,
+      latestDocument!.mime_type,
+      latestDocument!.label,
+      profile?.birth_date ?? null,
+      geminiApiKey,
+    )
+    : Promise.resolve<BiomarkerExtractionOutcome>({
+      result: null,
+      latencyMs: 0,
+      tokenInput: null,
+      tokenOutput: null,
+    });
+
+  const [geminiResponse, biomarkerOutcome] = await Promise.all([
+    fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${geminiApiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts }],
+          generationConfig: {
+            responseMimeType: "application/json",
+            responseSchema: RESPONSE_SCHEMA,
+          },
+        }),
+      },
+    ),
+    biomarkerExtractionPromise,
+  ]);
 
   if (!geminiResponse.ok) {
     const errorText = await geminiResponse.text();
@@ -691,17 +1126,17 @@ Deno.serve(async (req) => {
 
   const safetyResult = await applySafetyLayer(validation.value, geminiApiKey);
 
-  // Pipeline totals — the generation call plus the independent safety
-  // classifier call, not just the first. A per-request cost/latency figure
-  // that silently excludes the second LLM call understates the real cost.
+  // Pipeline totals — generation + independent safety classifier + (when a
+  // document was attached) biomarker extraction. A per-request cost/latency
+  // figure that silently excludes any of these understates the real cost.
   await logLlmCall(supabase, {
     userId: user.id,
-    latencyMs: latencyMs + safetyResult.classifierLatencyMs,
-    tokenInput: tokenInput != null || safetyResult.classifierTokenInput != null
-      ? (tokenInput ?? 0) + (safetyResult.classifierTokenInput ?? 0)
+    latencyMs: latencyMs + safetyResult.classifierLatencyMs + biomarkerOutcome.latencyMs,
+    tokenInput: tokenInput != null || safetyResult.classifierTokenInput != null || biomarkerOutcome.tokenInput != null
+      ? (tokenInput ?? 0) + (safetyResult.classifierTokenInput ?? 0) + (biomarkerOutcome.tokenInput ?? 0)
       : null,
-    tokenOutput: tokenOutput != null || safetyResult.classifierTokenOutput != null
-      ? (tokenOutput ?? 0) + (safetyResult.classifierTokenOutput ?? 0)
+    tokenOutput: tokenOutput != null || safetyResult.classifierTokenOutput != null || biomarkerOutcome.tokenOutput != null
+      ? (tokenOutput ?? 0) + (safetyResult.classifierTokenOutput ?? 0) + (biomarkerOutcome.tokenOutput ?? 0)
       : null,
     error: null,
     safetyCategory: safetyResult.finalCategory,
@@ -718,5 +1153,13 @@ Deno.serve(async (req) => {
   });
   if (safetyLogError) console.error("safety_events insert failed:", safetyLogError.message);
 
-  return jsonResponse({ suggestion: safetyResult.suggestion });
+  return jsonResponse({
+    suggestion: safetyResult.suggestion,
+    // A biological-age estimate is never a diagnosis and is always
+    // presented as medical_information, regardless of what the day's
+    // actual "focus" suggestion is about — it's deterministic, cited data,
+    // not model discretion, so there's nothing here for the safety
+    // classifier to mis-categorize.
+    biological_age: biomarkerOutcome.result,
+  });
 });
