@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app_theme.dart';
+import 'l10n/app_locale.dart';
+import 'l10n/app_strings.dart';
 import 'screens/auth/auth_gate.dart';
 import 'services/supabase_config.dart';
 
@@ -60,6 +62,7 @@ class _PuraAppState extends State<PuraApp> with WidgetsBindingObserver {
           // circadian "Automatico" curve) — forcing light here just stops
           // MaterialApp from also applying the OS dark-mode toggle on top.
           themeMode: ThemeMode.light,
+          builder: (context, child) => LocaleScope(notifier: appLocaleNotifier, child: child!),
           home: const AuthGate(),
         );
       },

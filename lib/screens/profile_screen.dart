@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../app_theme.dart';
+import '../l10n/app_locale.dart';
 import '../models/app_settings.dart';
 import '../models/user_document.dart';
 import '../services/auth_service.dart';
@@ -26,6 +27,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   AppSettings _settings = AppSettings.defaults;
   bool _loading = true;
+  final _nicknameController = TextEditingController();
 
   List<UserDocument> _documents = [];
   bool _documentsLoading = true;
@@ -38,16 +40,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _loadDocuments();
   }
 
+  @override
+  void dispose() {
+    _nicknameController.dispose();
+    super.dispose();
+  }
+
   Future<void> _loadSettings() async {
     try {
       final settings = await _settingsService.loadSettings();
       setState(() {
         _settings = settings;
+        _nicknameController.text = settings.nickname ?? '';
         _loading = false;
       });
     } catch (_) {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  Future<void> _saveNickname() async {
+    final trimmed = _nicknameController.text.trim();
+    setState(() => _settings = _settings.copyWith(nickname: trimmed.isEmpty ? null : trimmed));
+    await _save(() => _settingsService.saveNickname(trimmed.isEmpty ? null : trimmed));
   }
 
   Future<void> _setThemeMode(ThemeMode mode) async {
@@ -58,6 +73,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _setLanguage(String language) async {
     setState(() => _settings = _settings.copyWith(language: language));
+    appLocaleNotifier.value = localeFromCode(language);
     await _save(() => _settingsService.saveLanguage(language));
   }
 
@@ -175,6 +191,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
             subtitle: 'Tutto qui è opzionale. Più segnali = suggerimenti più rilevanti — ma non devi nulla.\n$email',
           ),
           const SizedBox(height: 24),
+          Text('NICKNAME', style: Theme.of(context).textTheme.labelMedium),
+          Text(
+            'Usato per il saluto in Oggi — "Buongiorno, [nickname]".',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _nicknameController,
+            textInputAction: TextInputAction.done,
+            onSubmitted: (_) => _saveNickname(),
+            decoration: InputDecoration(
+              hintText: 'Es. Enkida',
+              suffixIcon: IconButton(
+                icon: const Icon(Icons.check),
+                onPressed: _saveNickname,
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
           Text('ASPETTO', style: Theme.of(context).textTheme.labelMedium),
           Text(
             'Automatico segue l\'ora in una curva continua: luce al risveglio, '
@@ -239,14 +274,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: 24),
           Text('LINGUA', style: Theme.of(context).textTheme.labelMedium),
           Text(
-            'Solo salvata per ora — l\'app resta in italiano, non c\'è ancora traduzione.',
+            'Per ora traduce Oggi e il Ritual — il resto arriva a breve.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 8),
           SegmentedButton<String>(
             segments: const [
               ButtonSegment(value: 'it', label: Text('Italiano')),
-              ButtonSegment(value: 'en', label: Text('Inglese')),
+              ButtonSegment(value: 'en', label: Text('English')),
+              ButtonSegment(value: 'fr', label: Text('Français')),
             ],
             selected: {_settings.language},
             onSelectionChanged: (selection) => _setLanguage(selection.first),
@@ -277,7 +313,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ? const Center(child: CircularProgressIndicator())
               : Column(
                   children: _documents
-                      .map((doc) => AppCard(padding: EdgeInsets.zero, 
+                      .map((doc) => AppCard(blur: 0, padding: EdgeInsets.zero, 
                             child: ListTile(
                               leading: const Icon(Icons.description_outlined),
                               title: Text(doc.label),

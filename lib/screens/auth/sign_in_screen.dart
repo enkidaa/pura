@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../services/auth_service.dart';
+import '../../services/settings_service.dart';
 
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});
@@ -14,6 +15,7 @@ class _SignInScreenState extends State<SignInScreen> {
   final _authService = AuthService();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _nicknameController = TextEditingController();
 
   bool _isSignUp = false;
   bool _loading = false;
@@ -23,6 +25,7 @@ class _SignInScreenState extends State<SignInScreen> {
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _nicknameController.dispose();
     super.dispose();
   }
 
@@ -38,6 +41,15 @@ class _SignInScreenState extends State<SignInScreen> {
           email: _emailController.text.trim(),
           password: _passwordController.text,
         );
+        final nickname = _nicknameController.text.trim();
+        if (nickname.isNotEmpty) {
+          try {
+            await SettingsService().saveNickname(nickname);
+          } catch (_) {
+            // No active session yet (email confirmation pending) — the
+            // user can still set it later from Profilo.
+          }
+        }
       } else {
         await _authService.signIn(
           email: _emailController.text.trim(),
@@ -79,6 +91,13 @@ class _SignInScreenState extends State<SignInScreen> {
                   obscureText: true,
                   decoration: const InputDecoration(labelText: 'Password'),
                 ),
+                if (_isSignUp) ...[
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _nicknameController,
+                    decoration: const InputDecoration(labelText: 'Nickname (opzionale)'),
+                  ),
+                ],
                 if (_errorMessage != null) ...[
                   const SizedBox(height: 12),
                   Text(

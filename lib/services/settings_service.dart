@@ -12,7 +12,7 @@ class SettingsService {
     final rows = await _client
         .from('profiles')
         .select(
-          'theme_mode, language, evening_ritual_time, approach, sex, fasting_enabled',
+          'theme_mode, language, evening_ritual_time, approach, sex, fasting_enabled, nickname',
         )
         .eq('user_id', userId)
         .limit(1);
@@ -27,6 +27,7 @@ class SettingsService {
       approach: _parseApproach(row['approach'] as String?),
       sex: _parseSex(row['sex'] as String?),
       fastingEnabled: row['fasting_enabled'] as bool? ?? false,
+      nickname: row['nickname'] as String?,
     );
   }
 
@@ -54,6 +55,10 @@ class SettingsService {
 
   Future<void> saveFastingEnabled(bool value) {
     return _upsert({'fasting_enabled': value});
+  }
+
+  Future<void> saveNickname(String? nickname) {
+    return _upsert({'nickname': nickname});
   }
 
   Future<void> _upsert(Map<String, dynamic> values) async {

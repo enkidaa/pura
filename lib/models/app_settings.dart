@@ -12,6 +12,7 @@ class AppSettings {
     required this.approach,
     required this.sex,
     required this.fastingEnabled,
+    required this.nickname,
   });
 
   final ThemeMode themeMode;
@@ -20,6 +21,7 @@ class AppSettings {
   final WellnessApproach approach;
   final UserSex sex;
   final bool fastingEnabled;
+  final String? nickname;
 
   static const defaults = AppSettings(
     themeMode: ThemeMode.system,
@@ -28,6 +30,7 @@ class AppSettings {
     approach: WellnessApproach.balanced,
     sex: UserSex.unspecified,
     fastingEnabled: false,
+    nickname: null,
   );
 
   AppSettings copyWith({
@@ -37,6 +40,7 @@ class AppSettings {
     WellnessApproach? approach,
     UserSex? sex,
     bool? fastingEnabled,
+    String? nickname,
   }) {
     return AppSettings(
       themeMode: themeMode ?? this.themeMode,
@@ -45,6 +49,7 @@ class AppSettings {
       approach: approach ?? this.approach,
       sex: sex ?? this.sex,
       fastingEnabled: fastingEnabled ?? this.fastingEnabled,
+      nickname: nickname ?? this.nickname,
     );
   }
 }
