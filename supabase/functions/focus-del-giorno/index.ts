@@ -728,6 +728,7 @@ async function logLlmCall(
     tokenOutput: number | null;
     error: string | null;
     safetyCategory: string | null;
+    rateLimited?: boolean;
   },
 ) {
   const estimatedCost =
@@ -745,6 +746,7 @@ async function logLlmCall(
     estimated_cost_usd: estimatedCost,
     error: params.error,
     safety_category: params.safetyCategory,
+    rate_limited: params.rateLimited ?? false,
   });
   if (logError) console.error("llm_call_logs insert failed:", logError.message);
 }
@@ -764,6 +766,50 @@ Deno.serve(async (req) => {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
     return jsonResponse({ error: "Unauthorized" }, 401);
+  }
+
+  // --- Rate limiting -----------------------------------------------------
+  // Gemini Flash's free tier caps the whole PROJECT at 20 requests/day —
+  // shared across every user of the app, not per-user. Each focus-del-
+  // giorno request can itself make up to 3 Gemini calls (generation +
+  // independent safety classifier + biomarker extraction when a document
+  // is attached), so one user hammering this endpoint (a UI bug causing a
+  // retry loop, or just impatient tapping) can burn the shared daily quota
+  // for everyone else in a handful of requests. 10/user/day leaves
+  // headroom under the project cap even in the worst case (every request
+  // has a document attached, i.e. 3 Gemini calls each) while still being
+  // generous for what's meant to be a once-or-a-few-times-a-day suggestion.
+  const RATE_LIMIT_PER_USER_PER_DAY = 10;
+  const rateLimitWindowStart = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+  const { count: recentRequestCount, error: rateLimitCheckError } = await supabase
+    .from("llm_call_logs")
+    .select("*", { count: "exact", head: true })
+    .eq("user_id", user.id)
+    .eq("rate_limited", false) // only count actual attempted Gemini calls, not prior blocks
+    .gte("created_at", rateLimitWindowStart);
+
+  if (rateLimitCheckError) {
+    // Fail-open on the check itself failing (e.g. a transient DB issue) —
+    // the alternative is taking down the whole feature over an unrelated
+    // outage. Failing open on the *check* is not the same risk as failing
+    // open on the safety classifier: worst case here is a few extra
+    // requests on a bad day, not an unvetted medical claim reaching a user.
+    console.error("Rate limit check failed:", rateLimitCheckError.message);
+  } else if ((recentRequestCount ?? 0) >= RATE_LIMIT_PER_USER_PER_DAY) {
+    await logLlmCall(supabase, {
+      userId: user.id,
+      latencyMs: 0,
+      tokenInput: null,
+      tokenOutput: null,
+      error: "rate_limited",
+      safetyCategory: null,
+      rateLimited: true,
+    });
+    return jsonResponse(
+      { error: `Hai raggiunto il limite di ${RATE_LIMIT_PER_USER_PER_DAY} richieste al giorno per il Focus del giorno. Riprova domani.` },
+      429,
+    );
   }
 
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
