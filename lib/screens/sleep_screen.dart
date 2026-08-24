@@ -102,11 +102,16 @@ class _SleepScreenState extends State<SleepScreen> {
 
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final yesterday = today.subtract(const Duration(days: 1));
-    final bedtimeDate =
-        DateTime(yesterday.year, yesterday.month, yesterday.day, bedtime.hour, bedtime.minute);
-    final wakeTimeDate =
-        DateTime(today.year, today.month, today.day, wakeTime.hour, wakeTime.minute);
+    final wakeTimeDate = DateTime(today.year, today.month, today.day, wakeTime.hour, wakeTime.minute);
+
+    // A bedtime hour before noon means "after midnight" (e.g. 00:30, 02:00
+    // — went to bed in the small hours, same calendar day as wake). Only an
+    // afternoon/evening hour (>= 12:00) actually belongs to the day before.
+    // Always forcing "yesterday" here was a real bug: anyone with a
+    // past-midnight bedtime (extremely common) got a bedtime date a full
+    // day too early, inflating the logged duration by ~24h.
+    final bedtimeDay = bedtime.hour < 12 ? today : today.subtract(const Duration(days: 1));
+    final bedtimeDate = DateTime(bedtimeDay.year, bedtimeDay.month, bedtimeDay.day, bedtime.hour, bedtime.minute);
 
     await _save(bedtimeDate, wakeTimeDate);
   }
@@ -269,17 +274,31 @@ class _SleepTimeline extends StatelessWidget {
           style: theme.textTheme.bodySmall);
     }
 
-    // Most recent last, so the chart reads top (oldest) to bottom (newest)...
-    // actually keep most-recent-first order as loaded, top row = last night.
+    // logs arrives most-recent-first (see loadRecentSleepLogs) — kept as-is,
+    // so the top row is last night and rows read newest-to-oldest downward.
     return Column(
       children: logs.map((log) {
-        final reference =
-            DateTime(log.bedtime.year, log.bedtime.month, log.bedtime.day, 18, 0);
+        // Anchored to wakeTime's date (the night's sleep_date), not
+        // bedtime's own date — a past-midnight bedtime (e.g. 00:30) now
+        // correctly carries the *same* calendar date as wakeTime, which
+        // would put it chronologically before an 18:00 reference taken
+        // from its own date. The reference always has to be the evening
+        // *before* wake day, regardless of which date bedtime landed on.
+        final reference = DateTime(
+          log.wakeTime.year,
+          log.wakeTime.month,
+          log.wakeTime.day - 1,
+          18,
+          0,
+        );
         final startFraction =
             (log.bedtime.difference(reference).inMinutes / (_spanHours * 60)).clamp(0.0, 1.0);
         final endFraction =
             (log.wakeTime.difference(reference).inMinutes / (_spanHours * 60)).clamp(0.0, 1.0);
-        final weekday = _weekdayShort[log.bedtime.weekday - 1];
+        // Labeled by the evening the night started (reference's weekday),
+        // not bedtime's own date — a 00:30 bedtime is still "last night" in
+        // everyday terms, even though its calendar date is wake day.
+        final weekday = _weekdayShort[reference.weekday - 1];
 
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 6),
