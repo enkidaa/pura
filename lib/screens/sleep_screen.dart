@@ -5,6 +5,7 @@ import '../models/sleep_log.dart';
 import '../services/health_service.dart';
 import '../services/sleep_service.dart';
 import '../widgets/app_card.dart';
+import '../widgets/ios_time_picker_sheet.dart';
 import '../widgets/page_header.dart';
 
 const _weekdayShort = ['L', 'M', 'M', 'G', 'V', 'S', 'D'];
@@ -82,19 +83,19 @@ class _SleepScreenState extends State<SleepScreen> {
         ? TimeOfDay.fromDateTime(_lastNight!.wakeTime)
         : const TimeOfDay(hour: 7, minute: 0);
 
-    final pickedBedtime = await showTimePicker(
+    final pickedBedtime = await showIosTimePickerSheet(
       context: context,
+      title: strings.aCheOraSeiAndatoALetto,
       initialTime: bedtime,
-      helpText: strings.aCheOraSeiAndatoALetto,
     );
     if (pickedBedtime == null) return;
     bedtime = pickedBedtime;
 
     if (!mounted) return;
-    final pickedWakeTime = await showTimePicker(
+    final pickedWakeTime = await showIosTimePickerSheet(
       context: context,
+      title: strings.aCheOraTiSeiSvegliato,
       initialTime: wakeTime,
-      helpText: strings.aCheOraTiSeiSvegliato,
     );
     if (pickedWakeTime == null) return;
     wakeTime = pickedWakeTime;
