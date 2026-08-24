@@ -5,6 +5,7 @@ import '../models/cycle_info.dart';
 import '../services/cycle_service.dart';
 import '../services/health_service.dart';
 import '../widgets/app_card.dart';
+import '../widgets/cycle_calendar_sheet.dart';
 import '../widgets/page_header.dart';
 
 class CycleScreen extends StatefulWidget {
@@ -20,7 +21,7 @@ class _CycleScreenState extends State<CycleScreen> {
 
   bool _loading = true;
   CycleInfo? _info;
-  List<DateTime> _history = [];
+  List<CyclePeriodLog> _history = [];
 
   @override
   void initState() {
@@ -32,12 +33,12 @@ class _CycleScreenState extends State<CycleScreen> {
     try {
       final results = await Future.wait([
         _cycleService.loadCycleInfo(),
-        _cycleService.loadPeriodStartsHistory(),
+        _cycleService.loadPeriodLogsHistory(),
       ]);
       if (!mounted) return;
       setState(() {
         _info = results[0] as CycleInfo?;
-        _history = results[1] as List<DateTime>;
+        _history = results[1] as List<CyclePeriodLog>;
         _loading = false;
       });
     } catch (_) {
@@ -48,6 +49,19 @@ class _CycleScreenState extends State<CycleScreen> {
   Future<void> _logToday() async {
     try {
       await _cycleService.logPeriodStart(DateTime.now());
+      await _load();
+    } catch (_) {
+      if (!mounted) return;
+      _showError(AppStrings.of(context).impossibileSalvareRiprova);
+    }
+  }
+
+  Future<void> _logPastPeriod() async {
+    final range = await showCycleCalendarSheet(context);
+    if (range == null || !mounted) return;
+    final (startDate, lengthDays) = range;
+    try {
+      await _cycleService.logPeriodRange(startDate, lengthDays);
       await _load();
     } catch (_) {
       if (!mounted) return;
@@ -113,9 +127,19 @@ class _CycleScreenState extends State<CycleScreen> {
             : ListView(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 60),
                 children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back),
-                    onPressed: () => Navigator.of(context).pop(),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back),
+                        onPressed: () => Navigator.of(context).pop(),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.calendar_month_outlined),
+                        tooltip: 'Registra un ciclo passato',
+                        onPressed: _logPastPeriod,
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 8),
                   const PageHeader(eyebrow: 'Salute', title: 'Ciclo'),
@@ -179,7 +203,7 @@ class _CycleScreenState extends State<CycleScreen> {
                     ),
                     const SizedBox(height: 16),
                     Builder(builder: (context) {
-                      final entries = CycleHistoryEntry.fromStartsDescending(_history);
+                      final entries = CycleHistoryEntry.fromLogsDescending(_history);
                       return AppCard(
                         blur: 0,
                         child: Column(
@@ -235,7 +259,9 @@ class _CycleHistoryRow extends StatelessWidget {
         Text(title, style: theme.textTheme.titleMedium),
         const SizedBox(height: 2),
         Text(
-          'Mestruazione stimata di ${entry.estimatedPeriodLengthDays} giorni',
+          entry.isPeriodLengthEstimated
+              ? 'Mestruazione stimata di ${entry.periodLengthDays} giorni'
+              : 'Mestruazione di ${entry.periodLengthDays} giorni',
           style: theme.textTheme.bodySmall,
         ),
         const SizedBox(height: 10),
@@ -265,7 +291,7 @@ class _CycleDayIndicatorRow extends StatelessWidget {
       children: List.generate(totalDays, (i) {
         final day = i + 1;
         final Color color;
-        if (day <= entry.estimatedPeriodLengthDays) {
+        if (day <= entry.periodLengthDays) {
           color = scheme.primary;
         } else if (day >= entry.estimatedFertileWindowStartDay && day < fertileEnd) {
           color = scheme.secondary;
