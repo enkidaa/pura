@@ -5,8 +5,8 @@ import '../models/sleep_log.dart';
 import '../services/health_service.dart';
 import '../services/sleep_service.dart';
 import '../widgets/app_card.dart';
-import '../widgets/ios_time_picker_sheet.dart';
 import '../widgets/page_header.dart';
+import '../widgets/sleep_dial.dart';
 
 const _weekdayShort = ['L', 'M', 'M', 'G', 'V', 'S', 'D'];
 
@@ -75,30 +75,20 @@ class _SleepScreenState extends State<SleepScreen> {
   String _formatDuration(Duration d) => '${d.inHours}h ${d.inMinutes.remainder(60)}m';
 
   Future<void> _logManually() async {
-    final strings = AppStrings.of(context);
-    var bedtime = _lastNight != null
+    final initialBedtime = _lastNight != null
         ? TimeOfDay.fromDateTime(_lastNight!.bedtime)
         : const TimeOfDay(hour: 23, minute: 0);
-    var wakeTime = _lastNight != null
+    final initialWakeTime = _lastNight != null
         ? TimeOfDay.fromDateTime(_lastNight!.wakeTime)
         : const TimeOfDay(hour: 7, minute: 0);
 
-    final pickedBedtime = await showIosTimePickerSheet(
-      context: context,
-      title: strings.aCheOraSeiAndatoALetto,
-      initialTime: bedtime,
+    final picked = await showSleepDialSheet(
+      context,
+      initialBedtime: initialBedtime,
+      initialWakeTime: initialWakeTime,
     );
-    if (pickedBedtime == null) return;
-    bedtime = pickedBedtime;
-
-    if (!mounted) return;
-    final pickedWakeTime = await showIosTimePickerSheet(
-      context: context,
-      title: strings.aCheOraTiSeiSvegliato,
-      initialTime: wakeTime,
-    );
-    if (pickedWakeTime == null) return;
-    wakeTime = pickedWakeTime;
+    if (picked == null || !mounted) return;
+    final (bedtime, wakeTime) = picked;
 
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
