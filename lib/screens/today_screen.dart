@@ -330,6 +330,9 @@ class _TodayScreenState extends State<TodayScreen> {
     try {
       await _skincareService.uploadPhoto(period, File(picked.path));
       await _loadSkincare();
+    } on PhotoValidationException catch (e) {
+      if (!mounted) return;
+      _showError(e.message);
     } catch (_) {
       if (!mounted) return;
       _showError(AppStrings.of(context).impossibileSalvareFotoRiprova);

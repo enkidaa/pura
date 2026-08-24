@@ -4,6 +4,17 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 enum SkincarePeriod { mattino, sera }
 
+/// Thrown by [SkincarePhotoService.uploadPhoto] when the file fails
+/// client-side validation — [message] is meant to be shown to the user.
+class PhotoValidationException implements Exception {
+  const PhotoValidationException(this.message);
+  final String message;
+}
+
+// Mirrors the skincare-photos bucket's own file_size_limit (see
+// supabase/migrations/0028_storage_limits.sql).
+const _maxPhotoBytes = 5 * 1024 * 1024;
+
 class SkincarePhotoService {
   final _client = Supabase.instance.client;
   static const _bucket = 'skincare-photos';
@@ -29,6 +40,12 @@ class SkincarePhotoService {
   }
 
   Future<void> uploadPhoto(SkincarePeriod period, File file) async {
+    final sizeBytes = await file.length();
+    if (sizeBytes > _maxPhotoBytes) {
+      final sizeMb = (sizeBytes / (1024 * 1024)).toStringAsFixed(1);
+      throw PhotoValidationException('Foto troppo grande ($sizeMb MB) — il limite è 5 MB.');
+    }
+
     final userId = _client.auth.currentUser!.id;
     final path = '$userId/${_todayString()}_${period.name}.jpg';
 

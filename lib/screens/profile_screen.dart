@@ -165,6 +165,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         mimeType: mimeType,
       );
       await _loadDocuments();
+    } on DocumentValidationException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context)
