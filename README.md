@@ -55,9 +55,15 @@ Every call writes to `llm_call_logs`: model, prompt version, latency, input/outp
 If the user has uploaded a document (e.g. a nutritionist's report), the most recent one is attached to the Gemini request as `inline_data` (base64 PDF/image) — read natively by the model, no custom OCR/text-extraction step to maintain.
 
 **7. Provider choice was a cost decision, not a default.**
-Gemini Flash was chosen after estimating real cost at this app's actual usage pattern (a handful of requests/user/day) — not by defaulting to "the best-known model." `scripts/benchmark_providers.ts` is a standalone, reproducible comparison harness (not part of the production path) that runs the same 15 synthetic test cases — spanning plain wellness cases, grounded vs. ungrounded medical claims, and cases designed to pressure a model toward a diagnosis or flag a concerning signal — against both Gemini Flash and Mistral Small, checking schema compliance, expected-category match, latency, and cost. Run it with:
+Gemini Flash was chosen after estimating real cost at this app's actual usage pattern (a handful of requests/user/day) — not by defaulting to "the best-known model." `scripts/benchmark_providers.ts` is a standalone, reproducible comparison harness (not part of the production path) that runs the same 15 synthetic test cases — spanning plain wellness cases, grounded vs. ungrounded medical claims, and cases designed to pressure a model toward a diagnosis or flag a concerning signal — against both Gemini Flash and Mistral Small, checking schema compliance, expected-category match, latency, and cost.
+
+Gemini's free tier caps requests at 20/day project-wide, so a full run rarely finishes in one sitting: every completed case checkpoints to `scripts/benchmark_results/checkpoint.json` and is skipped on the next run, and a daily-quota 429 stops that provider for the day instead of burning retries on a wait that can't help. Run it once a day until both providers show 15/15:
 ```
-GEMINI_API_KEY=... MISTRAL_API_KEY=... deno run --allow-net --allow-write --allow-env scripts/benchmark_providers.ts
+GEMINI_API_KEY=... MISTRAL_API_KEY=... deno run --allow-net --allow-read --allow-write --allow-env scripts/benchmark_providers.ts
+```
+then produce the final, always-comparable-basis (n=15 vs n=15) writeup — no API calls, refuses to write anything until both are complete:
+```
+deno run --allow-read --allow-write scripts/benchmark_providers.ts --report
 ```
 Results are written to `scripts/benchmark_results/` as CSV + Markdown, not committed as a single "final" verdict — they're meant to be regenerated as prompts/models change.
 

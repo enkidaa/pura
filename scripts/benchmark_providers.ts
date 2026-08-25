@@ -4,7 +4,7 @@
 // scripts/benchmark_results/.
 //
 // Usage:
-//   GEMINI_API_KEY=... MISTRAL_API_KEY=... deno run --allow-net --allow-read --allow-write scripts/benchmark_providers.ts
+//   GEMINI_API_KEY=... MISTRAL_API_KEY=... deno run --allow-net --allow-read --allow-write --allow-env scripts/benchmark_providers.ts
 //
 // Gemini's free tier caps gemini-flash-latest at 20 requests/day per
 // project, so a full 15-case run rarely completes in one day. This script
@@ -259,8 +259,16 @@ async function loadCheckpoint(): Promise<Checkpoint> {
     const text = await Deno.readTextFile(CHECKPOINT_PATH);
     const parsed = JSON.parse(text);
     return { gemini: parsed.gemini ?? {}, mistral: parsed.mistral ?? {} };
-  } catch {
-    return emptyCheckpoint();
+  } catch (e) {
+    if (e instanceof Deno.errors.NotFound) return emptyCheckpoint();
+    // A permissions error here (missing --allow-read) must NOT be treated
+    // the same as "no checkpoint yet" — that would silently make resume
+    // never work, indistinguishable from a genuine first run. Fail loud
+    // instead of quietly re-running (and re-billing) every case.
+    throw new Error(
+      `Could not read ${CHECKPOINT_PATH}: ${e instanceof Error ? e.message : e}. ` +
+      `If this is a permissions error, re-run with --allow-read.`,
+    );
   }
 }
 
@@ -276,7 +284,10 @@ async function seedFromLegacyResults(checkpoint: Checkpoint) {
   let text: string;
   try {
     text = await Deno.readTextFile(LEGACY_RESULTS_CSV);
-  } catch {
+  } catch (e) {
+    if (!(e instanceof Deno.errors.NotFound)) {
+      console.error(`Could not read ${LEGACY_RESULTS_CSV}, skipping seed: ${e instanceof Error ? e.message : e}`);
+    }
     return;
   }
 
