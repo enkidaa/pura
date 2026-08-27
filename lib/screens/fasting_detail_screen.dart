@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -5,14 +7,19 @@ import '../l10n/app_strings.dart';
 import '../models/catalog_source.dart';
 import '../models/fasting_log.dart';
 import '../services/fasting_service.dart';
+import '../services/notification_service.dart';
 import '../services/routine_progress_service.dart';
 import '../services/settings_service.dart';
 import '../widgets/app_card.dart';
+import '../widgets/ios_time_picker_sheet.dart';
 
 // Reuses the generic routine_step_notes/sources tables (keyed by a plain
 // text id) instead of a dedicated fasting_notes table — same shape, no
 // need for another migration.
 const _fastingStepId = 'fasting';
+const _fastingNotificationOwnerId = 'fasting_window';
+const _eatingWindow = Duration(hours: 8);
+const _notificationLeadTime = Duration(hours: 7, minutes: 30);
 
 const _fastingSources = [
   CatalogSource(
@@ -44,15 +51,23 @@ class _FastingDetailScreenState extends State<FastingDetailScreen> {
   bool _inRoutine = false;
   FastingLog _log = const FastingLog();
   List<RoutineStepSource> _sources = [];
+  Timer? _tickTimer;
 
   @override
   void initState() {
     super.initState();
     _load();
+    // Keeps the elapsed/countdown text moving without needing any other
+    // interaction — the underlying data only changes on mark/edit, this
+    // just re-renders against DateTime.now().
+    _tickTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) setState(() {});
+    });
   }
 
   @override
   void dispose() {
+    _tickTimer?.cancel();
     _noteController.dispose();
     _sourceController.dispose();
     super.dispose();
@@ -61,7 +76,7 @@ class _FastingDetailScreenState extends State<FastingDetailScreen> {
   Future<void> _load() async {
     try {
       final results = await Future.wait([
-        _fastingService.loadToday(),
+        _fastingService.loadCurrent(),
         _progressService.loadNote(_fastingStepId),
         _progressService.loadSources(_fastingStepId),
       ]);
@@ -74,6 +89,7 @@ class _FastingDetailScreenState extends State<FastingDetailScreen> {
         _inRoutine = settings.fastingEnabled;
         _loading = false;
       });
+      await _syncNotification();
     } catch (_) {
       if (mounted) setState(() => _loading = false);
     }
@@ -89,24 +105,88 @@ class _FastingDetailScreenState extends State<FastingDetailScreen> {
     }
   }
 
-  Future<void> _markMeal({required bool isFirstMeal}) async {
+  /// One button, one action: marks whichever event ends the *current*
+  /// phase (first meal if fasting, last meal if eating) with the tap's own
+  /// timestamp — this is the entire fasting/eating toggle.
+  Future<void> _toggleMeal() async {
     final previous = _log;
+    final wasEating = _log.isEating;
     final now = DateTime.now();
     setState(() {
       _log = FastingLog(
-        firstMealTime: isFirstMeal ? now : _log.firstMealTime,
-        lastMealTime: isFirstMeal ? _log.lastMealTime : now,
+        firstMealTime: wasEating ? _log.firstMealTime : now,
+        lastMealTime: wasEating ? now : _log.lastMealTime,
       );
     });
     try {
-      if (isFirstMeal) {
-        await _fastingService.markFirstMealNow();
+      if (wasEating) {
+        await _fastingService.markLastMeal(now, closingEatingStart: previous.firstMealTime);
       } else {
-        await _fastingService.markLastMealNow();
+        await _fastingService.markFirstMeal(now, closingFastStart: previous.lastMealTime);
       }
+      await _syncNotification();
     } catch (_) {
       if (!mounted) return;
       setState(() => _log = previous);
+    }
+  }
+
+  /// Lets a mis-timed tap be corrected after the fact — same phase, just a
+  /// different timestamp, keeping the existing calendar day so a fast that
+  /// already spans midnight doesn't get accidentally shifted a day.
+  Future<void> _editCurrentPhaseTime() async {
+    final strings = AppStrings.of(context);
+    final isEating = _log.isEating;
+    final currentStart = _log.currentPhaseStart ?? DateTime.now();
+    final picked = await showIosTimePickerSheet(
+      context: context,
+      title: isEating ? strings.aCheOraHaiIniziatoAMangiare : strings.aCheOraHaiFinitoDiMangiare,
+      initialTime: TimeOfDay.fromDateTime(currentStart),
+    );
+    if (picked == null || !mounted) return;
+
+    final corrected = DateTime(
+      currentStart.year,
+      currentStart.month,
+      currentStart.day,
+      picked.hour,
+      picked.minute,
+    );
+    final previous = _log;
+    setState(() {
+      _log = FastingLog(
+        firstMealTime: isEating ? corrected : _log.firstMealTime,
+        lastMealTime: isEating ? _log.lastMealTime : corrected,
+      );
+    });
+    try {
+      if (isEating) {
+        await _fastingService.markFirstMeal(corrected);
+      } else {
+        await _fastingService.markLastMeal(corrected);
+      }
+      await _syncNotification();
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _log = previous);
+    }
+  }
+
+  /// Keeps the "window closing soon" notification in lockstep with the
+  /// actual state: scheduled 7h30 after the first meal while eating,
+  /// cancelled the moment the last meal is marked (or the state isn't
+  /// eating at all) — that cancellation is what "stops the timer".
+  Future<void> _syncNotification() async {
+    if (_log.isEating && _log.firstMealTime != null) {
+      final strings = AppStrings.of(context);
+      await NotificationService.scheduleOneOff(
+        ownerId: _fastingNotificationOwnerId,
+        title: strings.notificaFinestraDigiunoTitolo,
+        body: strings.notificaFinestraDigiunoBody,
+        at: _log.firstMealTime!.add(_notificationLeadTime),
+      );
+    } else {
+      await NotificationService.cancelOneOff(_fastingNotificationOwnerId);
     }
   }
 
@@ -165,7 +245,10 @@ class _FastingDetailScreenState extends State<FastingDetailScreen> {
                   const SizedBox(height: 8),
                   Text(strings.finestraDiDigiuno, style: theme.textTheme.displaySmall),
                   const SizedBox(height: 10),
-                  Chip(label: Text(strings.obiettivo16hChip), visualDensity: VisualDensity.compact),
+                  Chip(
+                    label: Text(_log.isEating ? strings.obiettivo8hChip : strings.obiettivo16hChip),
+                    visualDensity: VisualDensity.compact,
+                  ),
                   const SizedBox(height: 20),
                   AppCard(
                     blur: 0,
@@ -179,36 +262,49 @@ class _FastingDetailScreenState extends State<FastingDetailScreen> {
                   ),
                   AppCard(
                     blur: 0,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _log.lastMealTime == null
-                              ? '—'
-                              : strings.inDigiunoDa(
-                                  _formatDuration(DateTime.now().difference(_log.lastMealTime!))),
-                          style: theme.textTheme.headlineSmall,
-                        ),
-                        const SizedBox(height: 14),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: OutlinedButton(
-                                onPressed: () => _markMeal(isFirstMeal: false),
-                                child: Text(strings.segnaUltimoPasto),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: OutlinedButton(
-                                onPressed: () => _markMeal(isFirstMeal: true),
-                                child: Text(strings.segnaPrimoPasto),
+                    child: Builder(builder: (context) {
+                      final phaseStart = _log.currentPhaseStart;
+                      final elapsed = phaseStart == null ? null : DateTime.now().difference(phaseStart);
+                      final remaining = _log.isEating && elapsed != null ? _eatingWindow - elapsed : null;
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            elapsed == null
+                                ? '—'
+                                : (_log.isEating
+                                    ? strings.inPastoDa(_formatDuration(elapsed))
+                                    : strings.inDigiunoDa(_formatDuration(elapsed))),
+                            style: theme.textTheme.headlineSmall,
+                          ),
+                          if (remaining != null) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              remaining.isNegative
+                                  ? strings.finestraChiusa
+                                  : strings.finestraSiChiudeTra(_formatDuration(remaining)),
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: remaining.inMinutes <= 30 ? theme.colorScheme.error : null,
                               ),
                             ),
                           ],
-                        ),
-                      ],
-                    ),
+                          const SizedBox(height: 14),
+                          FilledButton(
+                            onPressed: _toggleMeal,
+                            child: Text(_log.isEating ? strings.segnaUltimoPasto : strings.segnaPrimoPasto),
+                          ),
+                          if (phaseStart != null) ...[
+                            const SizedBox(height: 4),
+                            Center(
+                              child: TextButton(
+                                onPressed: _editCurrentPhaseTime,
+                                child: Text(strings.correggiOrario),
+                              ),
+                            ),
+                          ],
+                        ],
+                      );
+                    }),
                   ),
                   Text(strings.info, style: theme.textTheme.labelMedium),
                   const SizedBox(height: 10),

@@ -273,6 +273,34 @@ class AppStrings {
   String inDigiunoDa(String duration) =>
       t('In digiuno da $duration', 'Fasting for $duration', 'En jeûne depuis $duration');
   String get info => t('INFO', 'INFO', 'INFO');
+  String inPastoDa(String duration) =>
+      t('In pasto da $duration', 'Eating for $duration', 'En train de manger depuis $duration');
+  String get obiettivo8hChip => t('Obiettivo 8h', 'Goal 8h', 'Objectif 8h');
+  String finestraSiChiudeTra(String duration) => t(
+        'Finestra si chiude tra $duration',
+        'Window closes in $duration',
+        'La fenêtre se ferme dans $duration',
+      );
+  String get finestraChiusa =>
+      t('Finestra di 8h superata', '8h window exceeded', 'Fenêtre de 8h dépassée');
+  String get correggiOrario => t('Correggi orario', 'Correct time', 'Corriger l\'heure');
+  String get aCheOraHaiIniziatoAMangiare => t(
+        'A che ora hai iniziato a mangiare?',
+        'What time did you start eating?',
+        'À quelle heure avez-vous commencé à manger ?',
+      );
+  String get aCheOraHaiFinitoDiMangiare => t(
+        'A che ora hai finito di mangiare?',
+        'What time did you finish eating?',
+        'À quelle heure avez-vous fini de manger ?',
+      );
+  String get notificaFinestraDigiunoTitolo =>
+      t('La finestra si sta per chiudere', 'Your eating window is closing soon', 'Votre fenêtre alimentaire se ferme bientôt');
+  String get notificaFinestraDigiunoBody => t(
+        'Sono passate 7h30 dal primo pasto — la finestra si chiude tra 30 minuti.',
+        'It\'s been 7h30 since your first meal — the window closes in 30 minutes.',
+        'Cela fait 7h30 depuis votre premier repas — la fenêtre se ferme dans 30 minutes.',
+      );
   String get digiunoSpiegazione => t(
         'Finestra 16:8 — mangi in una fascia di 8 ore, digiuni per le restanti 16. '
             'Segna l\'ultimo pasto di ieri e il primo di oggi per tracciare la finestra.',

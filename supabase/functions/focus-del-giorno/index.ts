@@ -824,7 +824,10 @@ Deno.serve(async (req) => {
     { data: cycleStarts },
     { data: recentSleep },
     { data: supplementIntake },
-    { data: recentFasting },
+    { data: currentFasting },
+    { data: recentFastWindows },
+    { data: stepNotes },
+    { data: supplementNotes },
   ] = await Promise.all([
       supabase
         .from("routine_completions")
@@ -867,10 +870,25 @@ Deno.serve(async (req) => {
         .gte("taken_on", sevenDaysAgo),
       supabase
         .from("fasting_logs")
-        .select("log_date, first_meal_time, last_meal_time")
+        .select("first_meal_time, last_meal_time")
         .eq("user_id", user.id)
-        .order("log_date", { ascending: false })
-        .limit(7),
+        .maybeSingle(),
+      supabase
+        .from("fasting_windows")
+        .select("kind, started_at, ended_at")
+        .eq("user_id", user.id)
+        .eq("kind", "fast")
+        .gte("started_at", sevenDaysAgo),
+      supabase
+        .from("routine_step_notes")
+        .select("step_id, note")
+        .eq("user_id", user.id)
+        .neq("note", ""),
+      supabase
+        .from("supplement_notes")
+        .select("supplement_id, note")
+        .eq("user_id", user.id)
+        .neq("note", ""),
     ]);
 
   const stepCounts = new Map<string, number>();
@@ -996,22 +1014,36 @@ Deno.serve(async (req) => {
     }
   }
 
-  if (profile?.fasting_enabled && recentFasting && recentFasting.length >= 2) {
-    const byDate = [...recentFasting].sort((a, b) => a.log_date.localeCompare(b.log_date));
-    const windowHours: number[] = [];
-    for (let i = 1; i < byDate.length; i++) {
-      const prevLastMeal = byDate[i - 1].last_meal_time;
-      const thisFirstMeal = byDate[i].first_meal_time;
-      if (!prevLastMeal || !thisFirstMeal) continue;
-      const hours = (new Date(thisFirstMeal).getTime() - new Date(prevLastMeal).getTime()) / (1000 * 60 * 60);
-      if (hours > 0 && hours < 30) windowHours.push(hours); // discard bad data, don't guess at it
+  if (profile?.fasting_enabled) {
+    // Live state first — the AI should know *right now* whether the user
+    // is mid-fast or mid-eating-window, not just a 7-day average.
+    const firstMeal = currentFasting?.first_meal_time ? new Date(currentFasting.first_meal_time) : null;
+    const lastMeal = currentFasting?.last_meal_time ? new Date(currentFasting.last_meal_time) : null;
+    const isEating = firstMeal !== null && (lastMeal === null || firstMeal > lastMeal);
+    const phaseStart = isEating ? firstMeal : lastMeal;
+    if (phaseStart) {
+      const elapsedHours = (Date.now() - phaseStart.getTime()) / (1000 * 60 * 60);
+      digestLines.push(
+        ``,
+        isEating
+          ? `Digiuno: attualmente in finestra alimentare da ${elapsedHours.toFixed(1)}h (obiettivo finestra 8h).`
+          : `Digiuno: attualmente in corso da ${elapsedHours.toFixed(1)}h (obiettivo 16h).`,
+      );
     }
-    if (windowHours.length > 0) {
-      const avgWindow = windowHours.reduce((a, b) => a + b, 0) / windowHours.length;
-      if (avgWindow < 12) {
-        offTargetFoundations.push(
-          `finestra di digiuno sotto l'obiettivo (media ${avgWindow.toFixed(1)}h su ${windowHours.length} finestre tracciate, obiettivo 16h)`,
-        );
+
+    // Then the trend — real completed-window durations (see migration
+    // 0031), not a fragile reconstruction from day-keyed rows.
+    if (recentFastWindows && recentFastWindows.length > 0) {
+      const windowHours = recentFastWindows
+        .map((w) => (new Date(w.ended_at).getTime() - new Date(w.started_at).getTime()) / (1000 * 60 * 60))
+        .filter((hours) => hours > 0 && hours < 30); // discard bad data, don't guess at it
+      if (windowHours.length > 0) {
+        const avgWindow = windowHours.reduce((a, b) => a + b, 0) / windowHours.length;
+        if (avgWindow < 12) {
+          offTargetFoundations.push(
+            `finestra di digiuno sotto l'obiettivo (media ${avgWindow.toFixed(1)}h su ${windowHours.length} finestre completate negli ultimi 7 giorni, obiettivo 16h)`,
+          );
+        }
       }
     }
   }
@@ -1039,6 +1071,14 @@ Deno.serve(async (req) => {
         ...[...nameCounts.entries()].map(([label, count]) => `- ${label}: ${count}/7`),
       );
     }
+  }
+
+  const personalNotes = [
+    ...(stepNotes ?? []).map((row) => `- ${row.step_id}: ${row.note}`),
+    ...(supplementNotes ?? []).map((row) => `- ${row.supplement_id}: ${row.note}`),
+  ];
+  if (personalNotes.length > 0) {
+    digestLines.push(``, `Note personali dell'utente su pratiche/integratori specifici:`, ...personalNotes);
   }
 
   if (profile?.narrative_summary) {

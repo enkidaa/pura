@@ -385,7 +385,7 @@ class _TodayScreenState extends State<TodayScreen> {
 
   Future<void> _loadFasting() async {
     try {
-      final log = await _fastingService.loadToday();
+      final log = await _fastingService.loadCurrent();
       if (mounted) setState(() => _fastingLog = log);
     } catch (_) {
       // Row falls back to defaults if this fails.
@@ -727,16 +727,15 @@ class _TodayScreenState extends State<TodayScreen> {
       secondaryIcon: _soundUrl == null ? null : Icons.play_arrow,
       onSecondaryTap: _soundUrl == null ? null : _playSound,
     );
+    final fastingPhaseStart = _fastingLog.currentPhaseStart;
     final fastingTile = _fastingEnabled
         ? _statTile(
             icon: Icons.timer_outlined,
             label: strings.digiuno,
-            value: _fastingLog.lastMealTime == null
+            value: fastingPhaseStart == null
                 ? '—'
-                : _formatDuration(
-                    DateTime.now().difference(_fastingLog.lastMealTime!),
-                  ),
-            note: strings.obiettivo16h,
+                : _formatDuration(DateTime.now().difference(fastingPhaseStart)),
+            note: _fastingLog.isEating ? strings.obiettivo8hChip : strings.obiettivo16h,
             onTap: _openFastingDetail,
           )
         : null;

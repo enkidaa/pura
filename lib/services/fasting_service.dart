@@ -5,14 +5,16 @@ import '../models/fasting_log.dart';
 class FastingService {
   final _client = Supabase.instance.client;
 
-  Future<FastingLog> loadToday() async {
+  /// The single current fasting/eating state — not scoped to "today", since
+  /// a fast routinely spans midnight (see migration 0030 for why keying by
+  /// day was actually broken).
+  Future<FastingLog> loadCurrent() async {
     final userId = _client.auth.currentUser!.id;
 
     final rows = await _client
         .from('fasting_logs')
         .select('first_meal_time, last_meal_time')
         .eq('user_id', userId)
-        .eq('log_date', _todayString())
         .limit(1);
 
     if (rows.isEmpty) return const FastingLog();
@@ -28,25 +30,47 @@ class FastingService {
     );
   }
 
-  Future<void> markFirstMealNow() => _markNow('first_meal_time');
+  /// [closingFastStart] is the *previous* lastMealTime — pass it when this
+  /// call ends a fast (i.e. the state was fasting, not eating), so the
+  /// completed fast gets a real history row instead of just moving the
+  /// current-state pointer forward.
+  Future<void> markFirstMeal(DateTime time, {DateTime? closingFastStart}) async {
+    await _mark('first_meal_time', time);
+    if (closingFastStart != null) {
+      await _logWindow(kind: 'fast', startedAt: closingFastStart, endedAt: time);
+    }
+  }
 
-  Future<void> markLastMealNow() => _markNow('last_meal_time');
+  /// [closingEatingStart] is the *previous* firstMealTime — pass it when
+  /// this call ends an eating window, for the same reason as above.
+  Future<void> markLastMeal(DateTime time, {DateTime? closingEatingStart}) async {
+    await _mark('last_meal_time', time);
+    if (closingEatingStart != null) {
+      await _logWindow(kind: 'eating', startedAt: closingEatingStart, endedAt: time);
+    }
+  }
 
-  Future<void> _markNow(String column) async {
+  Future<void> _mark(String column, DateTime time) async {
     final userId = _client.auth.currentUser!.id;
 
     await _client.from('fasting_logs').upsert(
-      {
-        'user_id': userId,
-        'log_date': _todayString(),
-        column: DateTime.now().toIso8601String(),
-      },
-      onConflict: 'user_id,log_date',
+      {'user_id': userId, column: time.toIso8601String()},
+      onConflict: 'user_id',
     );
   }
 
-  String _todayString() {
-    final now = DateTime.now();
-    return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+  Future<void> _logWindow({
+    required String kind,
+    required DateTime startedAt,
+    required DateTime endedAt,
+  }) async {
+    final userId = _client.auth.currentUser!.id;
+
+    await _client.from('fasting_windows').insert({
+      'user_id': userId,
+      'kind': kind,
+      'started_at': startedAt.toIso8601String(),
+      'ended_at': endedAt.toIso8601String(),
+    });
   }
 }

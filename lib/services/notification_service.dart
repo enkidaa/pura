@@ -65,6 +65,47 @@ class NotificationService {
     }
   }
 
+  // Offset well clear of the weekly id space (max ~10*99999+7) so a
+  // one-off notification (e.g. the fasting window warning) never
+  // collides with a recurring weekly one that happens to share an owner.
+  static int _oneOffNotificationId(String ownerId) {
+    return (ownerId.hashCode.abs() % 1000000) + 900000000;
+  }
+
+  /// Schedules a single non-repeating notification at [at]. Replaces any
+  /// previously scheduled one-off for the same [ownerId] — used for things
+  /// like "warn me before the eating window closes," which should move (or
+  /// disappear) if the underlying timestamp it's anchored to changes.
+  static Future<void> scheduleOneOff({
+    required String ownerId,
+    required String title,
+    required String body,
+    required DateTime at,
+  }) async {
+    await cancelOneOff(ownerId);
+    final scheduled = tz.TZDateTime.from(at, tz.local);
+    if (scheduled.isBefore(tz.TZDateTime.now(tz.local))) return;
+    await _plugin.zonedSchedule(
+      id: _oneOffNotificationId(ownerId),
+      title: title,
+      body: body,
+      scheduledDate: scheduled,
+      notificationDetails: const NotificationDetails(
+        iOS: DarwinNotificationDetails(),
+        android: AndroidNotificationDetails(
+          'fasting_window',
+          'Finestra di digiuno',
+          importance: Importance.high,
+          priority: Priority.high,
+        ),
+      ),
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+    );
+  }
+
+  static Future<void> cancelOneOff(String ownerId) =>
+      _plugin.cancel(id: _oneOffNotificationId(ownerId));
+
   static tz.TZDateTime _nextInstanceOfWeekday(int weekday, TimeOfDay time) {
     var scheduled = tz.TZDateTime.now(tz.local);
     scheduled = tz.TZDateTime(
