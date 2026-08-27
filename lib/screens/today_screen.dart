@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../app_theme.dart';
 import '../l10n/app_strings.dart';
 import '../models/app_settings.dart';
 import '../models/cycle_info.dart';
@@ -590,6 +591,7 @@ class _TodayScreenState extends State<TodayScreen> {
     final allSteps = _orderedRitualSteps();
     final ritualSteps = _fitToTimeBudget(allSteps);
     final strings = AppStrings.of(context);
+    final phase = Theme.of(context).extension<CircadianTokens>()?.phase;
 
     return SafeArea(
       bottom: false,
@@ -597,12 +599,19 @@ class _TodayScreenState extends State<TodayScreen> {
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
         children: [
           PageHeader(eyebrow: strings.todayEyebrow, title: _greeting()),
+          if (phase != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              strings.circadianPhaseLabel(phase),
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
           const SizedBox(height: 24),
           _sectionTitle(strings.ritual),
           if (_timeBudgetMinutes != null && ritualSteps.length < allSteps.length) ...[
             const SizedBox(height: 6),
             Text(
-              'In base ai tuoi $_timeBudgetMinutes min disponibili',
+              strings.inBaseAiTuoiMinDisponibili(_timeBudgetMinutes!),
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ],

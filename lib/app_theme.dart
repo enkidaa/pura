@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 
 final themeModeNotifier = ValueNotifier<ThemeMode>(ThemeMode.system);
 
+enum CircadianPhase { luce, sospeso, notte }
+
 /// One continuous circadian scale, not three fixed themes: t=0 is wake-up
 /// light, t=1 is night. "Automatico" reads the clock into this scale;
 /// Chiaro/Scuro just pin t to an endpoint. Everything below is a lerp
@@ -30,14 +32,14 @@ class _StateTokens {
     required this.shadowAlpha,
     required this.shadowBlur,
     required this.shadowOffsetY,
-    required this.phaseLabel,
+    required this.phase,
   });
 
   final Color bg, ink, inkSoft, inkFaint, surf, border, accent, accent2, btn, btnFg;
   final double surfaceAlpha, borderAlpha, hairlineAlpha, navOpacity, glowOpacity, grainOpacity;
   final double shadowAlpha, shadowBlur, shadowOffsetY;
   final BlendMode grainBlend;
-  final String phaseLabel;
+  final CircadianPhase phase;
 }
 
 const _morning = _StateTokens(
@@ -61,7 +63,7 @@ const _morning = _StateTokens(
   shadowAlpha: 0.07,
   shadowBlur: 14,
   shadowOffsetY: 8,
-  phaseLabel: 'Luce',
+  phase: CircadianPhase.luce,
 );
 
 const _afternoon = _StateTokens(
@@ -85,7 +87,7 @@ const _afternoon = _StateTokens(
   shadowAlpha: 0.1,
   shadowBlur: 14,
   shadowOffsetY: 8,
-  phaseLabel: 'Sospeso',
+  phase: CircadianPhase.sospeso,
 );
 
 const _evening = _StateTokens(
@@ -109,7 +111,7 @@ const _evening = _StateTokens(
   shadowAlpha: 0.42,
   shadowBlur: 16,
   shadowOffsetY: 10,
-  phaseLabel: 'Notte',
+  phase: CircadianPhase.notte,
 );
 
 double _mixD(double a, double b, double k) => a + (b - a) * k;
@@ -152,7 +154,7 @@ _StateTokens _mix(_StateTokens a, _StateTokens b, double k) {
     shadowAlpha: _mixD(a.shadowAlpha, b.shadowAlpha, k),
     shadowBlur: _mixD(a.shadowBlur, b.shadowBlur, k),
     shadowOffsetY: _mixD(a.shadowOffsetY, b.shadowOffsetY, k),
-    phaseLabel: k < 0.5 ? a.phaseLabel : b.phaseLabel,
+    phase: k < 0.5 ? a.phase : b.phase,
   );
 }
 
@@ -162,10 +164,30 @@ _StateTokens _tokensForT(double t) {
   return _mix(_afternoon, _evening, (clamped - 0.5) / 0.5);
 }
 
+// Wake (t=0, "Luce") anchors at 6:00, and the day ramps up to full night
+// (t=1, "Notte") by 23:00 — that's the 17h daytime span below. The night
+// itself isn't instantaneous: without wraparound handling, any hour past
+// midnight fell outside that 6:00-23:00 window and clamped straight to
+// t=0 (full light) — the theme would render bright at 2am. Real nights
+// stay fully dark (t=1) from 23:00 through a short pre-dawn window, then
+// ramp back down to t=0 by wake — never jumping straight from dark to
+// light at the wake instant, and never brightening before dawn starts.
+const _wakeHour = 6.0;
+const _fullNightHour = 23.0;
+const _dawnRampHours = 2.0;
+
 double _autoT() {
   final now = DateTime.now();
   final hour = now.hour + now.minute / 60.0;
-  return ((hour - 6) / 17).clamp(0.0, 1.0);
+
+  if (hour >= _wakeHour && hour < _fullNightHour) {
+    return (hour - _wakeHour) / (_fullNightHour - _wakeHour);
+  }
+  final dawnStart = _wakeHour - _dawnRampHours;
+  if (hour >= dawnStart && hour < _wakeHour) {
+    return 1.0 - (hour - dawnStart) / _dawnRampHours;
+  }
+  return 1.0; // 23:00 -> dawnStart: deep night, held at full darkness.
 }
 
 /// The extra semantic tokens ThemeData/ColorScheme have no slot for —
@@ -186,7 +208,7 @@ class CircadianTokens extends ThemeExtension<CircadianTokens> {
     required this.shadowColor,
     required this.shadowBlur,
     required this.shadowOffsetY,
-    required this.phaseLabel,
+    required this.phase,
   });
 
   final Color accent2;
@@ -200,7 +222,7 @@ class CircadianTokens extends ThemeExtension<CircadianTokens> {
   final Color shadowColor;
   final double shadowBlur;
   final double shadowOffsetY;
-  final String phaseLabel;
+  final CircadianPhase phase;
 
   @override
   CircadianTokens copyWith() => this;
@@ -220,7 +242,7 @@ class CircadianTokens extends ThemeExtension<CircadianTokens> {
       shadowColor: Color.lerp(shadowColor, other.shadowColor, t)!,
       shadowBlur: lerpDouble(shadowBlur, other.shadowBlur, t)!,
       shadowOffsetY: lerpDouble(shadowOffsetY, other.shadowOffsetY, t)!,
-      phaseLabel: t < 0.5 ? phaseLabel : other.phaseLabel,
+      phase: t < 0.5 ? phase : other.phase,
     );
   }
 }
@@ -349,7 +371,7 @@ class AppTheme {
           shadowColor: Colors.black.withValues(alpha: s.shadowAlpha),
           shadowBlur: s.shadowBlur,
           shadowOffsetY: s.shadowOffsetY,
-          phaseLabel: s.phaseLabel,
+          phase: s.phase,
         ),
       ],
       // AppCard (lib/widgets/app_card.dart) replaces Material's Card

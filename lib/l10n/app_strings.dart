@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 
+import '../app_theme.dart';
 import 'app_locale.dart';
 
 /// Installed once around the routed content (see main.dart) so any widget
@@ -653,4 +654,26 @@ class AppStrings {
   // Skincare photo picker
   String get fotocamera => t('Fotocamera', 'Camera', 'Appareil photo');
   String get libreriaFoto => t('Libreria foto', 'Photo library', 'Photothèque');
+
+  // Today screen
+  String inBaseAiTuoiMinDisponibili(int minutes) => t(
+        'In base ai tuoi $minutes min disponibili',
+        'Based on your $minutes available minutes',
+        'Selon vos $minutes minutes disponibles',
+      );
+
+  // Circadian phase labels
+  String get faseLuce => t('Luce', 'Light', 'Lumière');
+  String get faseSospeso => t('Sospeso', 'Suspended', 'Suspendu');
+  String get faseNotte => t('Notte', 'Night', 'Nuit');
+  String circadianPhaseLabel(CircadianPhase phase) {
+    switch (phase) {
+      case CircadianPhase.luce:
+        return faseLuce;
+      case CircadianPhase.sospeso:
+        return faseSospeso;
+      case CircadianPhase.notte:
+        return faseNotte;
+    }
+  }
 }
