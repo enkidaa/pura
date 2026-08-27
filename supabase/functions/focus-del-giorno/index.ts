@@ -14,6 +14,34 @@ const PROMPT_VERSION = "v1";
 const GEMINI_INPUT_PRICE_PER_MILLION = 0.075;
 const GEMINI_OUTPUT_PRICE_PER_MILLION = 0.30;
 
+// Gemini's free-tier model regularly returns 503 "currently experiencing
+// high demand... try again later" — Google's own wording says this is
+// transient, so retrying briefly (rather than failing the whole request
+// straight to the user) clears most of these without adding much latency.
+// 429 gets the same treatment since a per-minute burst limit looks
+// identical to it on the wire; a genuinely exhausted daily quota just
+// fails again on the retry, at the cost of one extra short wait.
+const GEMINI_RETRY_DELAYS_MS = [500, 1500];
+
+async function fetchGeminiWithRetry(url: string, body: unknown): Promise<Response> {
+  let lastResponse: Response | null = null;
+  for (let attempt = 0; attempt <= GEMINI_RETRY_DELAYS_MS.length; attempt++) {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (response.ok || (response.status !== 503 && response.status !== 429)) {
+      return response;
+    }
+    lastResponse = response;
+    if (attempt < GEMINI_RETRY_DELAYS_MS.length) {
+      await new Promise((resolve) => setTimeout(resolve, GEMINI_RETRY_DELAYS_MS[attempt]));
+    }
+  }
+  return lastResponse!;
+}
+
 function estimateCostUsd(tokenInput: number, tokenOutput: number): number {
   return (
     (tokenInput / 1_000_000) * GEMINI_INPUT_PRICE_PER_MILLION +
@@ -229,23 +257,19 @@ async function classifyIndependently(
 ): Promise<ClassifierResult> {
   const startTime = Date.now();
   try {
-    const response = await fetch(
+    const response = await fetchGeminiWithRetry(
       `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
       {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{
-              text:
-                `${SAFETY_CLASSIFIER_PROMPT}\n\nOsservazione: ${observation}\nRaccomandazione: ${recommendation}`,
-            }],
+        contents: [{
+          parts: [{
+            text:
+              `${SAFETY_CLASSIFIER_PROMPT}\n\nOsservazione: ${observation}\nRaccomandazione: ${recommendation}`,
           }],
-          generationConfig: {
-            responseMimeType: "application/json",
-            responseSchema: SAFETY_CLASSIFIER_SCHEMA,
-          },
-        }),
+        }],
+        generationConfig: {
+          responseMimeType: "application/json",
+          responseSchema: SAFETY_CLASSIFIER_SCHEMA,
+        },
       },
     );
     const latencyMs = Date.now() - startTime;
@@ -600,23 +624,19 @@ async function extractBiologicalAge(
 ): Promise<BiomarkerExtractionOutcome> {
   const startTime = Date.now();
   try {
-    const response = await fetch(
+    const response = await fetchGeminiWithRetry(
       `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
       {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{
-            parts: [
-              { text: BIOMARKER_EXTRACTION_PROMPT },
-              { inline_data: { mime_type: mimeType, data: base64Data } },
-            ],
-          }],
-          generationConfig: {
-            responseMimeType: "application/json",
-            responseSchema: BIOMARKER_EXTRACTION_SCHEMA,
-          },
-        }),
+        contents: [{
+          parts: [
+            { text: BIOMARKER_EXTRACTION_PROMPT },
+            { inline_data: { mime_type: mimeType, data: base64Data } },
+          ],
+        }],
+        generationConfig: {
+          responseMimeType: "application/json",
+          responseSchema: BIOMARKER_EXTRACTION_SCHEMA,
+        },
       },
     );
     const latencyMs = Date.now() - startTime;
@@ -1132,18 +1152,14 @@ Deno.serve(async (req) => {
     });
 
   const [geminiResponse, biomarkerOutcome] = await Promise.all([
-    fetch(
+    fetchGeminiWithRetry(
       `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${geminiApiKey}`,
       {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts }],
-          generationConfig: {
-            responseMimeType: "application/json",
-            responseSchema: RESPONSE_SCHEMA,
-          },
-        }),
+        contents: [{ parts }],
+        generationConfig: {
+          responseMimeType: "application/json",
+          responseSchema: RESPONSE_SCHEMA,
+        },
       },
     ),
     biomarkerExtractionPromise,
