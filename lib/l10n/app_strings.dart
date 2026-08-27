@@ -525,6 +525,16 @@ class AppStrings {
       );
   String importatoDa(String source) =>
       t('Importato da: $source', 'Imported from: $source', 'Importé depuis : $source');
+  String get trascinaLeDueManiglie => t(
+        'Trascina le due maniglie, o tocca per inserire l\'orario esatto.',
+        'Drag the two handles, or tap to enter the exact time.',
+        'Faites glisser les deux poignées, ou touchez pour saisir l\'heure exacte.',
+      );
+  String get tocca7NottiPerCorreggere => t(
+        'Tocca una notte per correggerla.',
+        'Tap a night to correct it.',
+        'Touchez une nuit pour la corriger.',
+      );
 
   // Cycle screen
   String get ciclo => t('Ciclo', 'Cycle', 'Cycle');
@@ -666,6 +676,11 @@ class AppStrings {
   String get faseLuce => t('Luce', 'Light', 'Lumière');
   String get faseSospeso => t('Sospeso', 'Suspended', 'Suspendu');
   String get faseNotte => t('Notte', 'Night', 'Nuit');
+  String get ruotaPerVedereTutto => t(
+        'Ruota per vedere tutto — questi non entrano nel tuo tempo di oggi',
+        'Rotate to see everything — these don\'t fit your time today',
+        'Faites pivoter pour tout voir — ceux-ci ne rentrent pas dans votre temps aujourd\'hui',
+      );
   String circadianPhaseLabel(CircadianPhase phase) {
     switch (phase) {
       case CircadianPhase.luce:

@@ -61,7 +61,8 @@ class _SleepDialState extends State<SleepDial> {
   static const _tapDistanceThreshold = 10.0;
   static const _handleHitRadius = 28.0;
 
-  double _angleFor(TimeOfDay t) => (t.hour * 60 + t.minute) / (24 * 60) * 2 * math.pi;
+  double _angleFor(TimeOfDay t) =>
+      (t.hour * 60 + t.minute) / (24 * 60) * 2 * math.pi;
 
   TimeOfDay _timeForAngle(double angle) {
     final normalized = angle % (2 * math.pi);
@@ -73,7 +74,10 @@ class _SleepDialState extends State<SleepDial> {
   Offset _handlePosition(double angle, double radius, Offset center) {
     // angle=0 is straight up (midnight at the top, matching the reference
     // dial); angle increases clockwise.
-    return Offset(center.dx + radius * math.sin(angle), center.dy - radius * math.cos(angle));
+    return Offset(
+      center.dx + radius * math.sin(angle),
+      center.dy - radius * math.cos(angle),
+    );
   }
 
   double _angleFromPointer(Offset local, Offset center) {
@@ -84,7 +88,11 @@ class _SleepDialState extends State<SleepDial> {
     return angle;
   }
 
-  void _handlePanStart(DragStartDetails details, Offset center, double handleRadius) {
+  void _handlePanStart(
+    DragStartDetails details,
+    Offset center,
+    double handleRadius,
+  ) {
     final bedPos = _handlePosition(_angleFor(_bedtime), handleRadius, center);
     final wakePos = _handlePosition(_angleFor(_wakeTime), handleRadius, center);
     final toBed = (details.localPosition - bedPos).distance;
@@ -127,7 +135,9 @@ class _SleepDialState extends State<SleepDial> {
     final strings = AppStrings.of(context);
     final picked = await showIosTimePickerSheet(
       context: context,
-      title: isBedtime ? strings.aCheOraSeiAndatoALetto : strings.aCheOraTiSeiSvegliato,
+      title: isBedtime
+          ? strings.aCheOraSeiAndatoALetto
+          : strings.aCheOraTiSeiSvegliato,
       initialTime: isBedtime ? _bedtime : _wakeTime,
     );
     if (picked == null || !mounted) return;
@@ -163,18 +173,28 @@ class _SleepDialState extends State<SleepDial> {
               painter: _SleepDialPainter(
                 bedtimeAngle: _angleFor(_bedtime),
                 wakeAngle: _angleFor(_wakeTime),
-                trackColor: scheme.outlineVariant.withValues(alpha: tokens.borderAlpha),
+                trackColor: scheme.outlineVariant.withValues(
+                  alpha: tokens.borderAlpha,
+                ),
                 arcColor: scheme.primary,
                 tickColor: scheme.outline.withValues(alpha: 0.5),
               ),
             ),
             Positioned(
               top: 10,
-              child: Icon(Icons.bedtime_outlined, size: 16, color: scheme.outline),
+              child: Icon(
+                Icons.bedtime_outlined,
+                size: 16,
+                color: scheme.outline,
+              ),
             ),
             Positioned(
               bottom: 10,
-              child: Icon(Icons.wb_sunny_outlined, size: 16, color: scheme.outline),
+              child: Icon(
+                Icons.wb_sunny_outlined,
+                size: 16,
+                color: scheme.outline,
+              ),
             ),
             _buildHandle(
               angle: _angleFor(_bedtime),
@@ -214,10 +234,22 @@ class _SleepDialState extends State<SleepDial> {
           decoration: BoxDecoration(
             color: color,
             shape: BoxShape.circle,
-            border: Border.all(color: Theme.of(context).colorScheme.surface, width: 3),
-            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 6)],
+            border: Border.all(
+              color: Theme.of(context).colorScheme.surface,
+              width: 3,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.15),
+                blurRadius: 6,
+              ),
+            ],
           ),
-          child: Icon(icon, size: 16, color: Theme.of(context).colorScheme.onPrimary),
+          child: Icon(
+            icon,
+            size: 16,
+            color: Theme.of(context).colorScheme.onPrimary,
+          ),
         ),
       ),
     );
@@ -250,10 +282,10 @@ class _SleepDialPainter extends CustomPainter {
       ..strokeWidth = 10;
     canvas.drawCircle(center, radius, trackPaint);
 
-    // Tick marks every hour, a touch longer every 6h — purely decorative
-    // (no labels drawn into the canvas; the moon/sun icons carry the
-    // day/night reference points instead, kept as real widgets so they
-    // stay crisp and themeable).
+    // Tick marks every hour, a touch longer every 6h. Every 3h also gets a
+    // printed number — enough to read the dial at a glance without
+    // crowding it with all 24. 00 and 12 are skipped: the moon/sun icons
+    // already mark those two spots, so a number there would just overlap.
     final tickPaint = Paint()
       ..color = tickColor
       ..strokeWidth = 1.5;
@@ -262,9 +294,41 @@ class _SleepDialPainter extends CustomPainter {
       final isMajor = h % 6 == 0;
       final outer = radius + 10;
       final inner = radius + (isMajor ? 2 : 5);
-      final p1 = Offset(center.dx + inner * math.sin(angle), center.dy - inner * math.cos(angle));
-      final p2 = Offset(center.dx + outer * math.sin(angle), center.dy - outer * math.cos(angle));
+      final p1 = Offset(
+        center.dx + inner * math.sin(angle),
+        center.dy - inner * math.cos(angle),
+      );
+      final p2 = Offset(
+        center.dx + outer * math.sin(angle),
+        center.dy - outer * math.cos(angle),
+      );
       canvas.drawLine(p1, p2, tickPaint..strokeWidth = isMajor ? 2 : 1);
+
+      if (h % 3 == 0 && h != 0 && h != 12) {
+        final labelRadius = outer + 8;
+        final labelCenter = Offset(
+          center.dx + labelRadius * math.sin(angle),
+          center.dy - labelRadius * math.cos(angle),
+        );
+        final painter = TextPainter(
+          text: TextSpan(
+            text: h.toString().padLeft(2, '0'),
+            style: TextStyle(
+              fontFamily: 'Inter',
+              fontSize: 10,
+              color: tickColor,
+            ),
+          ),
+          textDirection: TextDirection.ltr,
+        )..layout();
+        painter.paint(
+          canvas,
+          Offset(
+            labelCenter.dx - painter.width / 2,
+            labelCenter.dy - painter.height / 2,
+          ),
+        );
+      }
     }
 
     // Sleep arc: always the *forward* sweep from bedtime to wake, through
@@ -336,7 +400,8 @@ Future<(TimeOfDay, TimeOfDay)?> showSleepDialSheet(
                       ),
                       Text(strings.sonno, style: theme.textTheme.titleMedium),
                       TextButton(
-                        onPressed: () => Navigator.of(sheetContext).pop((bedtime, wakeTime)),
+                        onPressed: () =>
+                            Navigator.of(sheetContext).pop((bedtime, wakeTime)),
                         child: Text(strings.fatto),
                       ),
                     ],
@@ -357,7 +422,7 @@ Future<(TimeOfDay, TimeOfDay)?> showSleepDialSheet(
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Trascina le due maniglie, o tocca per inserire l\'orario esatto.',
+                    strings.trascinaLeDueManiglie,
                     style: theme.textTheme.bodySmall,
                     textAlign: TextAlign.center,
                   ),

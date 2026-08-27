@@ -80,7 +80,6 @@ class _TodayScreenState extends State<TodayScreen> {
   Map<SkincarePeriod, String> _skincarePhotos = {};
   bool _skincareLoading = true;
 
-
   final _settingsService = SettingsService();
   final _cycleService = CycleService();
   UserSex _userSex = UserSex.unspecified;
@@ -106,7 +105,9 @@ class _TodayScreenState extends State<TodayScreen> {
     _loadSkincare();
     _loadCycleIfRelevant();
     _loadTimeBudget();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _maybePromptTimeBudget());
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _maybePromptTimeBudget(),
+    );
   }
 
   Future<void> _loadTimeBudget() async {
@@ -147,22 +148,33 @@ class _TodayScreenState extends State<TodayScreen> {
     final today = DateTime.now();
     final practices = practiceCatalog
         .where((p) => _routinePracticeIds.contains(p.id))
-        .where((p) => (_practiceSchedules[p.id] ?? const ScheduleSpec()).isDueOn(today))
-        .map((p) => RitualEntry(
-              id: p.id,
-              title: p.name,
-              durationMinutes: parsePracticeDurationMinutes(p.frequency),
-              kind: RitualEntryKind.practice,
-            ));
+        .where(
+          (p) =>
+              (_practiceSchedules[p.id] ?? const ScheduleSpec()).isDueOn(today),
+        )
+        .map(
+          (p) => RitualEntry(
+            id: p.id,
+            title: p.name,
+            durationMinutes: parsePracticeDurationMinutes(p.frequency),
+            kind: RitualEntryKind.practice,
+          ),
+        );
     final supplements = supplementCatalog
         .where((s) => _routineSupplementIds.contains(s.id))
-        .where((s) => (_supplementSchedules[s.id] ?? const ScheduleSpec()).isDueOn(today))
-        .map((s) => RitualEntry(
-              id: s.id,
-              title: s.name,
-              durationMinutes: s.durationMinutes,
-              kind: RitualEntryKind.supplement,
-            ));
+        .where(
+          (s) => (_supplementSchedules[s.id] ?? const ScheduleSpec()).isDueOn(
+            today,
+          ),
+        )
+        .map(
+          (s) => RitualEntry(
+            id: s.id,
+            title: s.name,
+            durationMinutes: s.durationMinutes,
+            kind: RitualEntryKind.supplement,
+          ),
+        );
     return [...practices, ...supplements];
   }
 
@@ -177,19 +189,27 @@ class _TodayScreenState extends State<TodayScreen> {
     final now = TimeOfDay.now();
     final cutoff = _eveningRitualTime ?? const TimeOfDay(hour: 17, minute: 0);
     final pastCutoff =
-        now.hour > cutoff.hour || (now.hour == cutoff.hour && now.minute >= cutoff.minute);
-    final fixedSteps = (pastCutoff
-            ? [...eveningRoutineSteps, ...morningRoutineSteps]
-            : [...morningRoutineSteps, ...eveningRoutineSteps])
-        .map((s) => RitualEntry(
-              id: s.id,
-              title: s.title,
-              durationMinutes: s.durationMinutes,
-              kind: RitualEntryKind.routineStep,
-            ));
+        now.hour > cutoff.hour ||
+        (now.hour == cutoff.hour && now.minute >= cutoff.minute);
+    final fixedSteps =
+        (pastCutoff
+                ? [...eveningRoutineSteps, ...morningRoutineSteps]
+                : [...morningRoutineSteps, ...eveningRoutineSteps])
+            .map(
+              (s) => RitualEntry(
+                id: s.id,
+                title: s.title,
+                durationMinutes: s.durationMinutes,
+                kind: RitualEntryKind.routineStep,
+              ),
+            );
     final combined = [...fixedSteps, ..._duePracticesAndSupplements()];
-    final pending = combined.where((s) => !_completedStepIds.contains(s.id)).toList();
-    final done = combined.where((s) => _completedStepIds.contains(s.id)).toList();
+    final pending = combined
+        .where((s) => !_completedStepIds.contains(s.id))
+        .toList();
+    final done = combined
+        .where((s) => _completedStepIds.contains(s.id))
+        .toList();
     return [...pending, ...done];
   }
 
@@ -332,16 +352,18 @@ class _TodayScreenState extends State<TodayScreen> {
   // the full circle minus that gap.
   int? _wakeTimeVariabilityMinutes() {
     if (_recentSleepLogs.length < 2) return null;
-    final minutesOfDay = _recentSleepLogs
-        .map((log) => log.wakeTime.hour * 60 + log.wakeTime.minute)
-        .toList()
-      ..sort();
+    final minutesOfDay =
+        _recentSleepLogs
+            .map((log) => log.wakeTime.hour * 60 + log.wakeTime.minute)
+            .toList()
+          ..sort();
 
     const dayMinutes = 24 * 60;
     var largestGap = 0;
     for (var i = 0; i < minutesOfDay.length; i++) {
-      final next =
-          i + 1 < minutesOfDay.length ? minutesOfDay[i + 1] : minutesOfDay[0] + dayMinutes;
+      final next = i + 1 < minutesOfDay.length
+          ? minutesOfDay[i + 1]
+          : minutesOfDay[0] + dayMinutes;
       final gap = next - minutesOfDay[i];
       if (gap > largestGap) largestGap = gap;
     }
@@ -418,7 +440,8 @@ class _TodayScreenState extends State<TodayScreen> {
             child: Text(strings.fotocamera),
           ),
           CupertinoActionSheetAction(
-            onPressed: () => Navigator.of(sheetContext).pop(ImageSource.gallery),
+            onPressed: () =>
+                Navigator.of(sheetContext).pop(ImageSource.gallery),
             child: Text(strings.libreriaFoto),
           ),
         ],
@@ -437,7 +460,10 @@ class _TodayScreenState extends State<TodayScreen> {
     // which the storage path/bucket policy below both assume is JPEG.
     // Without this, a gallery-picked photo would upload with a mismatched
     // .jpg extension on HEIC bytes and could fail to render later.
-    final picked = await ImagePicker().pickImage(source: source, imageQuality: 90);
+    final picked = await ImagePicker().pickImage(
+      source: source,
+      imageQuality: 90,
+    );
     if (picked == null) return;
 
     try {
@@ -453,21 +479,25 @@ class _TodayScreenState extends State<TodayScreen> {
   }
 
   void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _openPlantDiversity() async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const PlantDiversityScreen()),
-    );
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const PlantDiversityScreen()));
     _loadPlants();
   }
 
   Future<void> _openStepDetail(RitualEntry entry) async {
     switch (entry.kind) {
       case RitualEntryKind.routineStep:
-        final step = [...morningRoutineSteps, ...eveningRoutineSteps]
-            .firstWhere((s) => s.id == entry.id);
+        final step = [
+          ...morningRoutineSteps,
+          ...eveningRoutineSteps,
+        ].firstWhere((s) => s.id == entry.id);
         await Navigator.of(context).push(
           MaterialPageRoute(
             builder: (_) => RoutineStepDetailScreen(
@@ -484,7 +514,9 @@ class _TodayScreenState extends State<TodayScreen> {
           );
         } else {
           await Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => PracticeDetailScreen(practice: practice)),
+            MaterialPageRoute(
+              builder: (_) => PracticeDetailScreen(practice: practice),
+            ),
           );
         }
       case RitualEntryKind.supplement:
@@ -515,25 +547,25 @@ class _TodayScreenState extends State<TodayScreen> {
     }
 
     if (mounted && log.source != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(strings.importatoDa(log.source!))),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(strings.importatoDa(log.source!))));
     }
     _saveSleep(log.bedtime, log.wakeTime);
   }
 
   Future<void> _openSleepScreen() async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const SleepScreen()),
-    );
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const SleepScreen()));
     _loadSleep();
     _loadSleepRegularity();
   }
 
   Future<void> _openCycleScreen() async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const CycleScreen()),
-    );
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const CycleScreen()));
     _loadCycleIfRelevant();
   }
 
@@ -590,6 +622,12 @@ class _TodayScreenState extends State<TodayScreen> {
   Widget build(BuildContext context) {
     final allSteps = _orderedRitualSteps();
     final ritualSteps = _fitToTimeBudget(allSteps);
+    final outOfBudgetIds = ritualSteps.length < allSteps.length
+        ? allSteps
+              .map((s) => s.id)
+              .toSet()
+              .difference(ritualSteps.map((s) => s.id).toSet())
+        : const <String>{};
     final strings = AppStrings.of(context);
     final phase = Theme.of(context).extension<CircadianTokens>()?.phase;
 
@@ -608,7 +646,8 @@ class _TodayScreenState extends State<TodayScreen> {
           ],
           const SizedBox(height: 24),
           _sectionTitle(strings.ritual),
-          if (_timeBudgetMinutes != null && ritualSteps.length < allSteps.length) ...[
+          if (_timeBudgetMinutes != null &&
+              ritualSteps.length < allSteps.length) ...[
             const SizedBox(height: 6),
             Text(
               strings.inBaseAiTuoiMinDisponibili(_timeBudgetMinutes!),
@@ -620,9 +659,11 @@ class _TodayScreenState extends State<TodayScreen> {
             const Center(child: CircularProgressIndicator())
           else
             RitualOrbit(
-              steps: ritualSteps,
+              steps: allSteps,
               completedIds: _completedStepIds,
-              onToggle: (step) => _toggleStep(step, !_completedStepIds.contains(step.id)),
+              outOfBudgetIds: outOfBudgetIds,
+              onToggle: (step) =>
+                  _toggleStep(step, !_completedStepIds.contains(step.id)),
               onOpenDetail: _openStepDetail,
             ),
           const SizedBox(height: 16),
@@ -643,7 +684,10 @@ class _TodayScreenState extends State<TodayScreen> {
   }
 
   Widget _sectionTitle(String text) {
-    return Text(text.toUpperCase(), style: Theme.of(context).textTheme.labelMedium);
+    return Text(
+      text.toUpperCase(),
+      style: Theme.of(context).textTheme.labelMedium,
+    );
   }
 
   String _sleepNote() {
@@ -689,7 +733,9 @@ class _TodayScreenState extends State<TodayScreen> {
             label: strings.digiuno,
             value: _fastingLog.lastMealTime == null
                 ? '—'
-                : _formatDuration(DateTime.now().difference(_fastingLog.lastMealTime!)),
+                : _formatDuration(
+                    DateTime.now().difference(_fastingLog.lastMealTime!),
+                  ),
             note: strings.obiettivo16h,
             onTap: _openFastingDetail,
           )
@@ -735,7 +781,11 @@ class _TodayScreenState extends State<TodayScreen> {
                   if (secondaryIcon != null)
                     GestureDetector(
                       onTap: onSecondaryTap,
-                      child: Icon(secondaryIcon, size: 18, color: theme.colorScheme.primary),
+                      child: Icon(
+                        secondaryIcon,
+                        size: 18,
+                        color: theme.colorScheme.primary,
+                      ),
                     ),
                 ],
               ),
@@ -744,7 +794,12 @@ class _TodayScreenState extends State<TodayScreen> {
               const SizedBox(height: 4),
               Text(label.toUpperCase(), style: theme.textTheme.labelMedium),
               const SizedBox(height: 3),
-              Text(note, style: theme.textTheme.bodySmall, maxLines: 2, overflow: TextOverflow.ellipsis),
+              Text(
+                note,
+                style: theme.textTheme.bodySmall,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
             ],
           ),
         ),
@@ -753,9 +808,9 @@ class _TodayScreenState extends State<TodayScreen> {
   }
 
   Future<void> _openFastingDetail() async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const FastingDetailScreen()),
-    );
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const FastingDetailScreen()));
     _loadFasting();
   }
 
@@ -781,7 +836,9 @@ class _TodayScreenState extends State<TodayScreen> {
                             _cycleInfo == null
                                 ? strings.cicloNonTracciato
                                 : strings.giornoFase(
-                                    _cycleInfo!.cycleDay, _phaseLabel(_cycleInfo!.phase)),
+                                    _cycleInfo!.cycleDay,
+                                    _phaseLabel(_cycleInfo!.phase),
+                                  ),
                             style: Theme.of(context).textTheme.titleMedium,
                           ),
                           if (_cycleInfo != null)
@@ -790,12 +847,17 @@ class _TodayScreenState extends State<TodayScreen> {
                                 _formatDate(_cycleInfo!.predictedNextStart),
                                 _cycleInfo!.avgCycleLength,
                               ),
-                              style: TextStyle(color: Theme.of(context).colorScheme.outline),
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.outline,
+                              ),
                             ),
                         ],
                       ),
                     ),
-                    Icon(Icons.chevron_right, color: Theme.of(context).colorScheme.outline),
+                    Icon(
+                      Icons.chevron_right,
+                      color: Theme.of(context).colorScheme.outline,
+                    ),
                   ],
                 ),
         ),
@@ -819,16 +881,25 @@ class _TodayScreenState extends State<TodayScreen> {
 
   Widget _buildSkincareCard() {
     final strings = AppStrings.of(context);
-    return AppCard(blur: 0, padding: EdgeInsets.zero,
+    return AppCard(
+      blur: 0,
+      padding: EdgeInsets.zero,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: _skincareLoading
             ? const Center(child: CircularProgressIndicator())
             : Row(
                 children: [
-                  Expanded(child: _skincareSlot(SkincarePeriod.mattino, strings.mattino)),
+                  Expanded(
+                    child: _skincareSlot(
+                      SkincarePeriod.mattino,
+                      strings.mattino,
+                    ),
+                  ),
                   const SizedBox(width: 16),
-                  Expanded(child: _skincareSlot(SkincarePeriod.sera, strings.sera)),
+                  Expanded(
+                    child: _skincareSlot(SkincarePeriod.sera, strings.sera),
+                  ),
                 ],
               ),
       ),
@@ -851,11 +922,12 @@ class _TodayScreenState extends State<TodayScreen> {
               borderRadius: BorderRadius.circular(12),
               image: url == null
                   ? null
-                  : DecorationImage(image: NetworkImage(url), fit: BoxFit.cover),
+                  : DecorationImage(
+                      image: NetworkImage(url),
+                      fit: BoxFit.cover,
+                    ),
             ),
-            child: url == null
-                ? const Icon(Icons.camera_alt_outlined)
-                : null,
+            child: url == null ? const Icon(Icons.camera_alt_outlined) : null,
           ),
         ),
       ],
