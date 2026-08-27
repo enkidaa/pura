@@ -14,6 +14,13 @@ import '../app_theme.dart';
 /// after cutting most instances down — removing it outright is what
 /// actually fixed it. [blur] is kept as a no-op parameter so existing call
 /// sites don't need touching.
+///
+/// The depth cue is restrained on purpose: a gradient rim (brighter along
+/// the top, like an edge catching light from above) plus a two-layer
+/// shadow (a tight contact shadow and a softer ambient one). No corner
+/// sheen, no glossy highlights — those read as a glass bubble, not the
+/// precise/quiet feel this app wants. All static gradients/shadows, no
+/// blur, no animation — costs nothing extra per frame over a flat card.
 class AppCard extends StatelessWidget {
   const AppCard({
     super.key,
@@ -36,6 +43,9 @@ class AppCard extends StatelessWidget {
     final tokens = Theme.of(context).extension<CircadianTokens>()!;
     const radius = 26.0;
 
+    final rimColor = scheme.outlineVariant;
+    final rimAlpha = tokens.borderAlpha;
+
     // RepaintBoundary: this card is almost always one of several siblings
     // in a scrolling list. Without its own layer, every card repaints
     // whenever any one of them does (Flutter repaints per-layer, not
@@ -47,6 +57,14 @@ class AppCard extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(radius),
           boxShadow: [
+            // Tight contact shadow — grounds the card against the surface
+            // right beneath it.
+            BoxShadow(
+              color: tokens.shadowColor,
+              blurRadius: tokens.shadowBlur * 0.35,
+              offset: Offset(0, tokens.shadowOffsetY * 0.3),
+            ),
+            // Original soft ambient shadow — further and more diffuse.
             BoxShadow(
               color: tokens.shadowColor,
               blurRadius: tokens.shadowBlur,
@@ -54,20 +72,31 @@ class AppCard extends StatelessWidget {
             ),
           ],
         ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(radius),
-          child: Container(
-            padding: padding,
-            decoration: BoxDecoration(
-              color: gradient == null ? scheme.surface.withValues(alpha: tokens.surfaceAlpha) : null,
-              gradient: gradient,
-              borderRadius: BorderRadius.circular(radius),
-              border: Border.all(
-                color: scheme.outlineVariant.withValues(alpha: tokens.borderAlpha),
-                width: 1,
-              ),
+        // A slim gradient rim (brighter along the top, fading toward the
+        // bottom) is the only "edge catching light" cue — kept subtle.
+        padding: const EdgeInsets.all(1),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(radius),
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                rimColor.withValues(alpha: (rimAlpha * 1.6).clamp(0.0, 1.0)),
+                rimColor.withValues(alpha: rimAlpha * 0.5),
+              ],
             ),
-            child: child,
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(radius - 1),
+            child: Container(
+              padding: padding,
+              decoration: BoxDecoration(
+                color: gradient == null ? scheme.surface.withValues(alpha: tokens.surfaceAlpha) : null,
+                gradient: gradient,
+              ),
+              child: child,
+            ),
           ),
         ),
       ),
