@@ -487,6 +487,28 @@ class AppStrings {
   String get impossibileEliminareRiprova =>
       t('Impossibile eliminare, riprova', 'Could not delete, try again', 'Impossible de supprimer, réessayez');
 
+  // Health context (profile)
+  String get contestoSalute => t('CONTESTO DI SALUTE', 'HEALTH CONTEXT', 'CONTEXTE DE SANTÉ');
+  String get contestoSaluteSpiegazione => t(
+        'Opzionale — condizioni, diagnosi o altro contesto che vuoi che l\'AI conosca quando genera i suoi consigli.',
+        'Optional — conditions, diagnoses, or other context you want the AI to know when it generates its suggestions.',
+        'Facultatif — conditions, diagnostics ou autre contexte que vous voulez que l\'IA connaisse pour générer ses conseils.',
+      );
+  // Onboarding quiz
+  String get benvenutoInPura => t('Benvenuto in Pura', 'Welcome to Pura', 'Bienvenue sur Pura');
+  String get onboardingSottotitolo => t(
+        'Qualche domanda veloce per personalizzare l\'app — puoi cambiare tutto in qualsiasi momento dal Profilo.',
+        'A few quick questions to personalize the app — you can change everything anytime from Profile.',
+        'Quelques questions rapides pour personnaliser l\'application — vous pouvez tout changer à tout moment depuis le Profil.',
+      );
+  String get iniziaOra => t('Inizia', 'Get started', 'Commencer');
+  String get saltaOnboarding => t('Salta per ora', 'Skip for now', 'Passer pour l\'instant');
+  String get esContestoSalute => t(
+        'Es. ipotiroidismo, in gravidanza, PCOS...',
+        'E.g. hypothyroidism, pregnant, PCOS...',
+        'Ex. hypothyroïdie, enceinte, SOPK...',
+      );
+
   // Common actions (continued)
   String get fatto => t('Fatto', 'Done', 'Fait');
 

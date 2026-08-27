@@ -12,7 +12,8 @@ class SettingsService {
     final rows = await _client
         .from('profiles')
         .select(
-          'theme_mode, language, evening_ritual_time, approach, sex, fasting_enabled, nickname, birth_date',
+          'theme_mode, language, evening_ritual_time, approach, sex, fasting_enabled, nickname, '
+          'birth_date, narrative_summary, onboarding_completed',
         )
         .eq('user_id', userId)
         .limit(1);
@@ -29,6 +30,8 @@ class SettingsService {
       fastingEnabled: row['fasting_enabled'] as bool? ?? false,
       nickname: row['nickname'] as String?,
       birthDate: row['birth_date'] == null ? null : DateTime.parse(row['birth_date'] as String),
+      narrativeSummary: row['narrative_summary'] as String?,
+      onboardingCompleted: row['onboarding_completed'] as bool? ?? false,
     );
   }
 
@@ -64,6 +67,14 @@ class SettingsService {
 
   Future<void> saveBirthDate(DateTime? birthDate) {
     return _upsert({'birth_date': birthDate?.toIso8601String().substring(0, 10)});
+  }
+
+  Future<void> saveNarrativeSummary(String? summary) {
+    return _upsert({'narrative_summary': summary});
+  }
+
+  Future<void> saveOnboardingCompleted() {
+    return _upsert({'onboarding_completed': true});
   }
 
   Future<void> _upsert(Map<String, dynamic> values) async {

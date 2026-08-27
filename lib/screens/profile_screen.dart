@@ -29,6 +29,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   AppSettings _settings = AppSettings.defaults;
   bool _loading = true;
   final _nicknameController = TextEditingController();
+  final _narrativeSummaryController = TextEditingController();
 
   List<UserDocument> _documents = [];
   bool _documentsLoading = true;
@@ -44,6 +45,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void dispose() {
     _nicknameController.dispose();
+    _narrativeSummaryController.dispose();
     super.dispose();
   }
 
@@ -53,6 +55,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       setState(() {
         _settings = settings;
         _nicknameController.text = settings.nickname ?? '';
+        _narrativeSummaryController.text = settings.narrativeSummary ?? '';
         _loading = false;
       });
     } catch (_) {
@@ -60,10 +63,46 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  // copyWith's `newValue ?? oldValue` pattern can't express "clear this
+  // field" — passing null there just keeps the old value showing locally
+  // until the next reload, even though the save itself (below, called
+  // directly with the trimmed value) writes the correct null. These two
+  // fields are the only ones a user can blank out entirely, so their
+  // optimistic update builds the next AppSettings by hand instead.
   Future<void> _saveNickname() async {
     final trimmed = _nicknameController.text.trim();
-    setState(() => _settings = _settings.copyWith(nickname: trimmed.isEmpty ? null : trimmed));
-    await _save(() => _settingsService.saveNickname(trimmed.isEmpty ? null : trimmed));
+    final nickname = trimmed.isEmpty ? null : trimmed;
+    setState(() => _settings = AppSettings(
+          themeMode: _settings.themeMode,
+          language: _settings.language,
+          eveningRitualTime: _settings.eveningRitualTime,
+          approach: _settings.approach,
+          sex: _settings.sex,
+          fastingEnabled: _settings.fastingEnabled,
+          nickname: nickname,
+          birthDate: _settings.birthDate,
+          narrativeSummary: _settings.narrativeSummary,
+          onboardingCompleted: _settings.onboardingCompleted,
+        ));
+    await _save(() => _settingsService.saveNickname(nickname));
+  }
+
+  Future<void> _saveNarrativeSummary() async {
+    final trimmed = _narrativeSummaryController.text.trim();
+    final summary = trimmed.isEmpty ? null : trimmed;
+    setState(() => _settings = AppSettings(
+          themeMode: _settings.themeMode,
+          language: _settings.language,
+          eveningRitualTime: _settings.eveningRitualTime,
+          approach: _settings.approach,
+          sex: _settings.sex,
+          fastingEnabled: _settings.fastingEnabled,
+          nickname: _settings.nickname,
+          birthDate: _settings.birthDate,
+          narrativeSummary: summary,
+          onboardingCompleted: _settings.onboardingCompleted,
+        ));
+    await _save(() => _settingsService.saveNarrativeSummary(summary));
   }
 
   Future<void> _setThemeMode(ThemeMode mode) async {
@@ -334,6 +373,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ? strings.impostaDataDiNascita
                   : _formatDate(_settings.birthDate!),
             ),
+          ),
+          const SizedBox(height: 24),
+          Text(strings.contestoSalute, style: Theme.of(context).textTheme.labelMedium),
+          Text(
+            strings.contestoSaluteSpiegazione,
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _narrativeSummaryController,
+            maxLines: 3,
+            onEditingComplete: _saveNarrativeSummary,
+            onTapOutside: (_) => _saveNarrativeSummary(),
+            decoration: InputDecoration(hintText: strings.esContestoSalute),
           ),
           const SizedBox(height: 24),
           Text(strings.documentiPerLai, style: Theme.of(context).textTheme.labelMedium),

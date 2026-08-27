@@ -14,6 +14,8 @@ class AppSettings {
     required this.fastingEnabled,
     required this.nickname,
     required this.birthDate,
+    required this.narrativeSummary,
+    required this.onboardingCompleted,
   });
 
   final ThemeMode themeMode;
@@ -29,6 +31,17 @@ class AppSettings {
   /// itself needs it as an input, not just for display.
   final DateTime? birthDate;
 
+  /// Freeform health context the user wants the AI to know about —
+  /// conditions, diagnoses, anything not captured by the structured
+  /// settings above. Read by focus-del-giorno as "Note aggiuntive
+  /// sull'utente".
+  final String? narrativeSummary;
+
+  /// Whether the first-launch onboarding quiz has been completed — gates
+  /// showing it again. A brand-new user has no profiles row at all, which
+  /// loadSettings already treats as AppSettings.defaults (false here).
+  final bool onboardingCompleted;
+
   static const defaults = AppSettings(
     themeMode: ThemeMode.system,
     language: 'it',
@@ -38,6 +51,8 @@ class AppSettings {
     fastingEnabled: false,
     nickname: null,
     birthDate: null,
+    narrativeSummary: null,
+    onboardingCompleted: false,
   );
 
   AppSettings copyWith({
@@ -49,6 +64,8 @@ class AppSettings {
     bool? fastingEnabled,
     String? nickname,
     DateTime? birthDate,
+    String? narrativeSummary,
+    bool? onboardingCompleted,
   }) {
     return AppSettings(
       themeMode: themeMode ?? this.themeMode,
@@ -59,6 +76,8 @@ class AppSettings {
       fastingEnabled: fastingEnabled ?? this.fastingEnabled,
       nickname: nickname ?? this.nickname,
       birthDate: birthDate ?? this.birthDate,
+      narrativeSummary: narrativeSummary ?? this.narrativeSummary,
+      onboardingCompleted: onboardingCompleted ?? this.onboardingCompleted,
     );
   }
 }

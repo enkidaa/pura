@@ -10,6 +10,7 @@ import '../widgets/ambient_background.dart';
 import '../widgets/grain_overlay.dart';
 import 'discover_screen.dart';
 import 'lab_screen.dart';
+import 'onboarding_quiz_screen.dart';
 import 'practices_screen.dart';
 import 'profile_screen.dart';
 import 'today_screen.dart';
@@ -43,6 +44,14 @@ class _HomeShellState extends State<HomeShell> {
       final settings = await SettingsService().loadSettings();
       themeModeNotifier.value = settings.themeMode;
       appLocaleNotifier.value = localeFromCode(settings.language);
+      if (!settings.onboardingCompleted && mounted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const OnboardingQuizScreen()),
+          );
+        });
+      }
     } catch (_) {
       // Keep defaults (system theme, Italian) if this fails.
     }
