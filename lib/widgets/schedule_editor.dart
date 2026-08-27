@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_strings.dart';
 import '../models/schedule_spec.dart';
-
-const _weekdayLabels = {1: 'L', 2: 'M', 3: 'M', 4: 'G', 5: 'V', 6: 'S', 7: 'D'};
 
 /// Editor per la programmazione dell'assunzione — separata dalla presenza
 /// in routine (già gestita altrove) e dai promemoria (notifiche locali).
@@ -15,17 +14,18 @@ class ScheduleEditor extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final strings = AppStrings.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('PROGRAMMAZIONE', style: theme.textTheme.labelMedium),
+        Text(strings.programmazione, style: theme.textTheme.labelMedium),
         const SizedBox(height: 10),
         Wrap(
           spacing: 6,
           runSpacing: 6,
           children: ScheduleType.values.map((type) {
             return ChoiceChip(
-              label: Text(scheduleTypeLabel(type)),
+              label: Text(scheduleTypeLabel(type, strings)),
               selected: spec.type == type,
               onSelected: (_) => onChanged(_defaultsFor(type)),
             );
@@ -57,7 +57,14 @@ class ScheduleEditor extends StatelessWidget {
     }
   }
 
+  Map<int, String> _weekdayLabels(BuildContext context) {
+    final letters = AppStrings.of(context).weekdayLettersMonToSun;
+    return {for (var i = 0; i < 7; i++) i + 1: letters[i]};
+  }
+
   Widget _buildTimesPerWeek(BuildContext context) {
+    final strings = AppStrings.of(context);
+    final weekdayLabels = _weekdayLabels(context);
     final n = spec.timesPerWeek ?? 3;
     final days = autoDistributeWeekdays(n);
     return Column(
@@ -69,7 +76,7 @@ class ScheduleEditor extends StatelessWidget {
               icon: const Icon(Icons.remove_circle_outline),
               onPressed: n > 1 ? () => onChanged(spec.copyWith(timesPerWeek: n - 1)) : null,
             ),
-            Text('$n volte a settimana', style: Theme.of(context).textTheme.bodyLarge),
+            Text(strings.nVolteASettimana(n), style: Theme.of(context).textTheme.bodyLarge),
             IconButton(
               icon: const Icon(Icons.add_circle_outline),
               onPressed: n < 7 ? () => onChanged(spec.copyWith(timesPerWeek: n + 1)) : null,
@@ -77,7 +84,7 @@ class ScheduleEditor extends StatelessWidget {
           ],
         ),
         Text(
-          'Giorni auto-distribuiti: ${days.map((d) => _weekdayLabels[d]).join(', ')}',
+          strings.giorniAutoDistribuiti(days.map((d) => weekdayLabels[d]).join(', ')),
           style: Theme.of(context).textTheme.bodySmall,
         ),
       ],
@@ -85,9 +92,10 @@ class ScheduleEditor extends StatelessWidget {
   }
 
   Widget _buildSpecificWeekdays(BuildContext context) {
+    final weekdayLabels = _weekdayLabels(context);
     return Wrap(
       spacing: 6,
-      children: _weekdayLabels.entries.map((entry) {
+      children: weekdayLabels.entries.map((entry) {
         final selected = spec.weekdays.contains(entry.key);
         return ChoiceChip(
           label: Text(entry.value),
@@ -108,6 +116,7 @@ class ScheduleEditor extends StatelessWidget {
 
   Widget _buildCyclic(BuildContext context) {
     final theme = Theme.of(context);
+    final strings = AppStrings.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -115,7 +124,7 @@ class ScheduleEditor extends StatelessWidget {
           children: [
             Expanded(
               child: _CycleStepper(
-                label: 'Giorni attivi',
+                label: strings.giorniAttivi,
                 value: spec.cycleOnDays ?? 7,
                 onChanged: (v) => onChanged(spec.copyWith(cycleOnDays: v)),
               ),
@@ -123,7 +132,7 @@ class ScheduleEditor extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(
               child: _CycleStepper(
-                label: 'Giorni pausa',
+                label: strings.giorniPausa,
                 value: spec.cycleOffDays ?? 14,
                 onChanged: (v) => onChanged(spec.copyWith(cycleOffDays: v)),
               ),
@@ -132,7 +141,7 @@ class ScheduleEditor extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         Text(
-          'Da oggi: ${spec.cycleOnDays ?? 7} giorni attivi, poi ${spec.cycleOffDays ?? 14} di pausa, a ciclo.',
+          strings.daOggiCiclico(spec.cycleOnDays ?? 7, spec.cycleOffDays ?? 14),
           style: theme.textTheme.bodySmall,
         ),
       ],

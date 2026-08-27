@@ -1,15 +1,17 @@
+import '../l10n/app_strings.dart';
+
 enum ScheduleType { daily, timesPerWeek, specificWeekdays, cyclic }
 
-String scheduleTypeLabel(ScheduleType type) {
+String scheduleTypeLabel(ScheduleType type, AppStrings strings) {
   switch (type) {
     case ScheduleType.daily:
-      return 'Ogni giorno';
+      return strings.scheduleOgniGiorno;
     case ScheduleType.timesPerWeek:
-      return 'N volte a settimana';
+      return strings.scheduleNVolteASettimana;
     case ScheduleType.specificWeekdays:
-      return 'Giorni specifici';
+      return strings.scheduleGiorniSpecifici;
     case ScheduleType.cyclic:
-      return 'Ciclico (giorni attivi / pausa)';
+      return strings.scheduleCiclico;
   }
 }
 

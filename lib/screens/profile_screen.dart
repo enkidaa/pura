@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../app_theme.dart';
 import '../l10n/app_locale.dart';
+import '../l10n/app_strings.dart';
 import '../models/app_settings.dart';
 import '../models/user_document.dart';
 import '../services/auth_service.dart';
@@ -96,7 +97,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final picked = await showTimePicker(
       context: context,
       initialTime: _settings.eveningRitualTime ?? const TimeOfDay(hour: 20, minute: 30),
-      helpText: 'Suggerisci il rituale serale dopo le',
+      helpText: AppStrings.of(context).suggerisciIlRitualeSeraleDopoLe,
     );
     if (picked == null) return;
 
@@ -111,7 +112,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       initialDate: _settings.birthDate ?? DateTime(now.year - 30),
       firstDate: DateTime(now.year - 120),
       lastDate: now,
-      helpText: 'Data di nascita',
+      helpText: AppStrings.of(context).dataDiNascitaPicker,
     );
     if (picked == null) return;
 
@@ -125,7 +126,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Impossibile salvare, riprova')));
+          .showSnackBar(SnackBar(content: Text(AppStrings.of(context).impossibileSalvareRiprova)));
     }
   }
 
@@ -171,7 +172,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Impossibile caricare, riprova')));
+          .showSnackBar(SnackBar(content: Text(AppStrings.of(context).impossibileCaricareRiprova)));
     } finally {
       if (mounted) setState(() => _uploading = false);
     }
@@ -185,7 +186,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Impossibile eliminare, riprova')));
+          .showSnackBar(SnackBar(content: Text(AppStrings.of(context).impossibileEliminareRiprova)));
       await _loadDocuments();
     }
   }
@@ -193,6 +194,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final email = Supabase.instance.client.auth.currentUser?.email ?? '';
+    final strings = AppStrings.of(context);
 
     if (_loading) {
       return const Center(child: CircularProgressIndicator());
@@ -204,14 +206,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
         children: [
           PageHeader(
-            eyebrow: 'Tuo, solo se vuoi',
-            title: 'Profilo',
-            subtitle: 'Tutto qui è opzionale. Più segnali = suggerimenti più rilevanti — ma non devi nulla.\n$email',
+            eyebrow: strings.tuoSoloSeVuoi,
+            title: strings.profilo,
+            subtitle: strings.profiloSottotitolo(email),
           ),
           const SizedBox(height: 24),
-          Text('NICKNAME', style: Theme.of(context).textTheme.labelMedium),
+          Text(strings.nickname, style: Theme.of(context).textTheme.labelMedium),
           Text(
-            'Usato per il saluto in Oggi — "Buongiorno, [nickname]".',
+            strings.nicknameSpiegazione,
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 8),
@@ -220,7 +222,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             textInputAction: TextInputAction.done,
             onSubmitted: (_) => _saveNickname(),
             decoration: InputDecoration(
-              hintText: 'Es. Enkida',
+              hintText: strings.esEnkida,
               suffixIcon: IconButton(
                 icon: const Icon(Icons.check),
                 onPressed: _saveNickname,
@@ -228,71 +230,69 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
           const SizedBox(height: 24),
-          Text('ASPETTO', style: Theme.of(context).textTheme.labelMedium),
+          Text(strings.aspetto, style: Theme.of(context).textTheme.labelMedium),
           Text(
-            'Automatico segue l\'ora in una curva continua: luce al risveglio, '
-            'sospeso nel pomeriggio, notte la sera.',
+            strings.aspettoSpiegazione,
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 8),
           SegmentedButton<ThemeMode>(
-            segments: const [
-              ButtonSegment(value: ThemeMode.light, label: Text('Chiaro')),
-              ButtonSegment(value: ThemeMode.dark, label: Text('Scuro')),
-              ButtonSegment(value: ThemeMode.system, label: Text('Auto')),
+            segments: [
+              ButtonSegment(value: ThemeMode.light, label: Text(strings.chiaro)),
+              ButtonSegment(value: ThemeMode.dark, label: Text(strings.scuro)),
+              ButtonSegment(value: ThemeMode.system, label: Text(strings.auto)),
             ],
             selected: {_settings.themeMode},
             onSelectionChanged: (selection) => _setThemeMode(selection.first),
           ),
           const SizedBox(height: 24),
-          Text('APPROCCIO AL BENESSERE', style: Theme.of(context).textTheme.labelMedium),
+          Text(strings.approccioAlBenessere, style: Theme.of(context).textTheme.labelMedium),
           Text(
-            'Pesa i consigli dell\'AI: più naturale (es. zenzero, EVOO, golden milk) '
-            'o più mirato/da ricerca (es. integratori specifici come NAD+).',
+            strings.approccioSpiegazione,
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 8),
           SegmentedButton<WellnessApproach>(
-            segments: const [
-              ButtonSegment(value: WellnessApproach.natural, label: Text('Naturale')),
-              ButtonSegment(value: WellnessApproach.balanced, label: Text('Bilanciato')),
-              ButtonSegment(value: WellnessApproach.scientific, label: Text('Scientifico')),
+            segments: [
+              ButtonSegment(value: WellnessApproach.natural, label: Text(strings.naturale)),
+              ButtonSegment(value: WellnessApproach.balanced, label: Text(strings.bilanciato)),
+              ButtonSegment(value: WellnessApproach.scientific, label: Text(strings.scientifico)),
             ],
             selected: {_settings.approach},
             onSelectionChanged: (selection) => _setApproach(selection.first),
           ),
           const SizedBox(height: 24),
-          Text('SESSO', style: Theme.of(context).textTheme.labelMedium),
+          Text(strings.sesso, style: Theme.of(context).textTheme.labelMedium),
           Text(
-            'Opzionale — decide solo se mostrare il tracking del ciclo mestruale in Oggi.',
+            strings.sessoSpiegazione,
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 8),
           SegmentedButton<UserSex>(
-            segments: const [
-              ButtonSegment(value: UserSex.unspecified, label: Text('Non specificato')),
-              ButtonSegment(value: UserSex.female, label: Text('Donna')),
-              ButtonSegment(value: UserSex.male, label: Text('Uomo')),
+            segments: [
+              ButtonSegment(value: UserSex.unspecified, label: Text(strings.nonSpecificato)),
+              ButtonSegment(value: UserSex.female, label: Text(strings.donna)),
+              ButtonSegment(value: UserSex.male, label: Text(strings.uomo)),
             ],
             selected: {_settings.sex},
             onSelectionChanged: (selection) => _setSex(selection.first),
           ),
           const SizedBox(height: 24),
-          Text('DIGIUNO', style: Theme.of(context).textTheme.labelMedium),
+          Text(strings.digiunoLabel, style: Theme.of(context).textTheme.labelMedium),
           Text(
-            'Opzionale — mostra il tracking del digiuno in Oggi solo se attivato.',
+            strings.digiunoSettingSpiegazione,
             style: Theme.of(context).textTheme.bodySmall,
           ),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            title: const Text('Traccia digiuno'),
+            title: Text(strings.tracciaDigiuno),
             value: _settings.fastingEnabled,
             onChanged: _setFastingEnabled,
           ),
           const SizedBox(height: 24),
-          Text('LINGUA', style: Theme.of(context).textTheme.labelMedium),
+          Text(strings.linguaLabel, style: Theme.of(context).textTheme.labelMedium),
           Text(
-            'Per ora traduce Oggi e il Ritual — il resto arriva a breve.',
+            strings.linguaSpiegazione,
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 8),
@@ -306,9 +306,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             onSelectionChanged: (selection) => _setLanguage(selection.first),
           ),
           const SizedBox(height: 24),
-          Text('RITUALE SERALE', style: Theme.of(context).textTheme.labelMedium),
+          Text(strings.ritualeSerale, style: Theme.of(context).textTheme.labelMedium),
           Text(
-            'Suggerisce quando iniziare la routine serale in Oggi.',
+            strings.ritualeSeraleSpiegazione,
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 8),
@@ -316,15 +316,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
             onPressed: _pickEveningRitualTime,
             child: Text(
               _settings.eveningRitualTime == null
-                  ? 'Imposta orario'
-                  : 'Suggerisci dopo le ${_settings.eveningRitualTime!.format(context)}',
+                  ? strings.impostaOrario
+                  : strings.suggerisciDopoLe(_settings.eveningRitualTime!.format(context)),
             ),
           ),
           const SizedBox(height: 24),
-          Text('DATA DI NASCITA', style: Theme.of(context).textTheme.labelMedium),
+          Text(strings.dataDiNascitaLabel, style: Theme.of(context).textTheme.labelMedium),
           Text(
-            'Opzionale — serve solo per calcolare l\'età biologica stimata (PhenoAge) da un referto '
-            'del sangue caricato qui sotto. Senza data di nascita, quella stima non può essere calcolata.',
+            strings.dataDiNascitaSpiegazione,
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 8),
@@ -332,14 +331,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
             onPressed: _pickBirthDate,
             child: Text(
               _settings.birthDate == null
-                  ? 'Imposta data di nascita'
+                  ? strings.impostaDataDiNascita
                   : _formatDate(_settings.birthDate!),
             ),
           ),
           const SizedBox(height: 24),
-          Text('DOCUMENTI PER L\'AI', style: Theme.of(context).textTheme.labelMedium),
+          Text(strings.documentiPerLai, style: Theme.of(context).textTheme.labelMedium),
           Text(
-            'PDF o foto (es. referto nutrizionale o del sangue) che il Focus del giorno può leggere.',
+            strings.documentiSpiegazione,
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 8),
@@ -347,7 +346,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ? const Center(child: CircularProgressIndicator())
               : Column(
                   children: _documents
-                      .map((doc) => AppCard(blur: 0, padding: EdgeInsets.zero, 
+                      .map((doc) => AppCard(blur: 0, padding: EdgeInsets.zero,
                             child: ListTile(
                               leading: const Icon(Icons.description_outlined),
                               title: Text(doc.label),
@@ -370,12 +369,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(Icons.upload_file_outlined),
-            label: const Text('Carica documento'),
+            label: Text(strings.caricaDocumento),
           ),
           const SizedBox(height: 32),
           OutlinedButton(
             onPressed: () => AuthService().signOut(),
-            child: const Text('Esci'),
+            child: Text(strings.esci),
           ),
         ],
       ),

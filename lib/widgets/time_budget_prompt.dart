@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_strings.dart';
+
 /// Returns the chosen minutes, or null if skipped. Shown once at the first
 /// morning open and once in the evening (~21:00) — see today_screen.dart.
 Future<int?> showTimeBudgetPrompt(BuildContext context) {
@@ -18,6 +20,7 @@ class _TimeBudgetDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final strings = AppStrings.of(context);
     return Dialog(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -25,12 +28,12 @@ class _TimeBudgetDialog extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('QUANTO TEMPO HAI?', style: theme.textTheme.labelMedium),
+            Text(strings.quantoTempoHaiEyebrow, style: theme.textTheme.labelMedium),
             const SizedBox(height: 8),
-            Text('Quanto tempo hai?', style: theme.textTheme.displaySmall),
+            Text(strings.quantoTempoHai, style: theme.textTheme.displaySmall),
             const SizedBox(height: 10),
             Text(
-              'Pura costruisce il rituale attorno al tuo tempo. Niente streak, niente pressione.',
+              strings.timeBudgetSpiegazione,
               style: theme.textTheme.bodyMedium,
             ),
             const SizedBox(height: 20),
@@ -44,7 +47,7 @@ class _TimeBudgetDialog extends StatelessWidget {
               children: _options.map((minutes) {
                 return OutlinedButton(
                   onPressed: () => Navigator.of(context).pop(minutes),
-                  child: Text('$minutes min'),
+                  child: Text(strings.minuti(minutes)),
                 );
               }).toList(),
             ),
@@ -52,7 +55,7 @@ class _TimeBudgetDialog extends StatelessWidget {
             Center(
               child: TextButton(
                 onPressed: () => Navigator.of(context).pop(null),
-                child: const Text('SALTA PER ORA'),
+                child: Text(strings.saltaPerOra),
               ),
             ),
           ],

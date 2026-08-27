@@ -79,7 +79,7 @@ class _CycleScreenState extends State<CycleScreen> {
     final starts = await _healthService.fetchMenstrualPeriodStarts();
     if (starts.isEmpty) {
       if (!mounted) return;
-      _showError('Nessun dato ciclo trovato in Salute.');
+      _showError(AppStrings.of(context).nessunDatoCicloTrovatoInSalute);
       return;
     }
     try {
@@ -136,13 +136,13 @@ class _CycleScreenState extends State<CycleScreen> {
                       ),
                       IconButton(
                         icon: const Icon(Icons.calendar_month_outlined),
-                        tooltip: 'Registra un ciclo passato',
+                        tooltip: strings.registraUnCicloPassato,
                         onPressed: _logPastPeriod,
                       ),
                     ],
                   ),
                   const SizedBox(height: 8),
-                  const PageHeader(eyebrow: 'Salute', title: 'Ciclo'),
+                  PageHeader(eyebrow: strings.salute, title: strings.ciclo),
                   const SizedBox(height: 20),
                   AppCard(
                     blur: 0,
@@ -178,7 +178,7 @@ class _CycleScreenState extends State<CycleScreen> {
                               child: OutlinedButton.icon(
                                 onPressed: _syncFromHealth,
                                 icon: const Icon(Icons.favorite_outline, size: 16),
-                                label: const Text('Da Salute'),
+                                label: Text(strings.daSalute),
                               ),
                             ),
                           ],
@@ -187,18 +187,16 @@ class _CycleScreenState extends State<CycleScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  Text('I TUOI CICLI', style: theme.textTheme.labelMedium),
+                  Text(strings.iTuoiCicli, style: theme.textTheme.labelMedium),
                   const SizedBox(height: 10),
                   if (_history.isEmpty)
                     Text(
-                      'Nessun ciclo registrato ancora.',
+                      strings.nessunCicloRegistratoAncora,
                       style: theme.textTheme.bodySmall,
                     )
                   else ...[
                     Text(
-                      'Le stime di durata mestruale e finestra fertile sono indicative, non '
-                      'misurate — quest\'app registra solo la data di inizio. Non usarle come '
-                      'metodo contraccettivo.',
+                      strings.disclaimerStimeCiclo,
                       style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.outline),
                     ),
                     const SizedBox(height: 16),
@@ -237,21 +235,22 @@ class _CycleHistoryRow extends StatelessWidget {
   final CycleHistoryEntry entry;
   final String Function(DateTime) formatDate;
 
-  String _formatShort(DateTime date) {
-    const months = [
-      'gen', 'feb', 'mar', 'apr', 'mag', 'giu',
-      'lug', 'ago', 'set', 'ott', 'nov', 'dic',
-    ];
+  String _formatShort(DateTime date, List<String> months) {
     return '${date.day} ${months[date.month - 1]}';
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final strings = AppStrings.of(context);
+    final months = strings.monthNamesShort;
     final title = entry.isCurrent
-        ? 'Ciclo corrente: iniziato il ${formatDate(entry.startDate)} (${entry.totalLengthDays} giorni)'
-        : '${entry.totalLengthDays} giorni: ${_formatShort(entry.startDate)} - '
-            '${_formatShort(entry.endDateExclusive.subtract(const Duration(days: 1)))}';
+        ? strings.cicloCorrenteIniziatoIl(formatDate(entry.startDate), entry.totalLengthDays)
+        : strings.nGiorniIntervallo(
+            entry.totalLengthDays,
+            _formatShort(entry.startDate, months),
+            _formatShort(entry.endDateExclusive.subtract(const Duration(days: 1)), months),
+          );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -260,8 +259,8 @@ class _CycleHistoryRow extends StatelessWidget {
         const SizedBox(height: 2),
         Text(
           entry.isPeriodLengthEstimated
-              ? 'Mestruazione stimata di ${entry.periodLengthDays} giorni'
-              : 'Mestruazione di ${entry.periodLengthDays} giorni',
+              ? strings.mestruazioneStimataDiNGiorni(entry.periodLengthDays)
+              : strings.mestruazioneDiNGiorniSenzaPunto(entry.periodLengthDays),
           style: theme.textTheme.bodySmall,
         ),
         const SizedBox(height: 10),
@@ -361,7 +360,7 @@ class _CycleTimeline extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 6),
-            Text('Ciclo medio: $total giorni', style: theme.textTheme.bodySmall),
+            Text(AppStrings.of(context).cicloMedioNGiorni(total), style: theme.textTheme.bodySmall),
           ],
         );
       },

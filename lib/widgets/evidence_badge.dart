@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_strings.dart';
 import '../models/practice.dart';
 
 class EvidenceBadge extends StatelessWidget {
@@ -31,7 +32,7 @@ class EvidenceBadge extends StatelessWidget {
         border: Border.all(color: color.withValues(alpha: 0.5)),
       ),
       child: Text(
-        'Evidenza: ${evidenceLevelLabel(level)}',
+        AppStrings.of(context).evidenzaLabel(evidenceLevelLabel(level, AppStrings.of(context))),
         style: TextStyle(fontFamily: 'Inter', fontSize: 11, color: color),
       ),
     );

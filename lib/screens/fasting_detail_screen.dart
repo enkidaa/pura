@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../l10n/app_strings.dart';
 import '../models/catalog_source.dart';
 import '../models/fasting_log.dart';
 import '../services/fasting_service.dart';
@@ -145,6 +146,7 @@ class _FastingDetailScreenState extends State<FastingDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final strings = AppStrings.of(context);
 
     return Scaffold(
       body: SafeArea(
@@ -159,18 +161,18 @@ class _FastingDetailScreenState extends State<FastingDetailScreen> {
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                   const SizedBox(height: 8),
-                  Text('DIGIUNO', style: theme.textTheme.labelMedium),
+                  Text(strings.finestraDiDigiunoEyebrow, style: theme.textTheme.labelMedium),
                   const SizedBox(height: 8),
-                  Text('Finestra di digiuno', style: theme.textTheme.displaySmall),
+                  Text(strings.finestraDiDigiuno, style: theme.textTheme.displaySmall),
                   const SizedBox(height: 10),
-                  Chip(label: const Text('Obiettivo 16h'), visualDensity: VisualDensity.compact),
+                  Chip(label: Text(strings.obiettivo16hChip), visualDensity: VisualDensity.compact),
                   const SizedBox(height: 20),
                   AppCard(
                     blur: 0,
                     child: SwitchListTile(
                       contentPadding: EdgeInsets.zero,
-                      title: const Text('Nella mia routine'),
-                      subtitle: const Text('Mostra la finestra di digiuno in Oggi'),
+                      title: Text(strings.nellaMiaRoutine),
+                      subtitle: Text(strings.mostraFinestraDigiunoInOggi),
                       value: _inRoutine,
                       onChanged: _toggleRoutine,
                     ),
@@ -183,7 +185,8 @@ class _FastingDetailScreenState extends State<FastingDetailScreen> {
                         Text(
                           _log.lastMealTime == null
                               ? '—'
-                              : 'In digiuno da ${_formatDuration(DateTime.now().difference(_log.lastMealTime!))}',
+                              : strings.inDigiunoDa(
+                                  _formatDuration(DateTime.now().difference(_log.lastMealTime!))),
                           style: theme.textTheme.headlineSmall,
                         ),
                         const SizedBox(height: 14),
@@ -192,14 +195,14 @@ class _FastingDetailScreenState extends State<FastingDetailScreen> {
                             Expanded(
                               child: OutlinedButton(
                                 onPressed: () => _markMeal(isFirstMeal: false),
-                                child: const Text('Segna ultimo pasto'),
+                                child: Text(strings.segnaUltimoPasto),
                               ),
                             ),
                             const SizedBox(width: 8),
                             Expanded(
                               child: OutlinedButton(
                                 onPressed: () => _markMeal(isFirstMeal: true),
-                                child: const Text('Segna primo pasto'),
+                                child: Text(strings.segnaPrimoPasto),
                               ),
                             ),
                           ],
@@ -207,15 +210,14 @@ class _FastingDetailScreenState extends State<FastingDetailScreen> {
                       ],
                     ),
                   ),
-                  Text('INFO', style: theme.textTheme.labelMedium),
+                  Text(strings.info, style: theme.textTheme.labelMedium),
                   const SizedBox(height: 10),
                   Text(
-                    'Finestra 16:8 — mangi in una fascia di 8 ore, digiuni per le restanti 16. '
-                    'Segna l\'ultimo pasto di ieri e il primo di oggi per tracciare la finestra.',
+                    strings.digiunoSpiegazione,
                     style: theme.textTheme.bodyLarge,
                   ),
                   const SizedBox(height: 24),
-                  Text('FONTI SCIENTIFICHE', style: theme.textTheme.labelMedium),
+                  Text(strings.fontiScientifiche, style: theme.textTheme.labelMedium),
                   const SizedBox(height: 10),
                   ..._fastingSources.map((s) => Padding(
                         padding: const EdgeInsets.only(bottom: 12),
@@ -240,11 +242,11 @@ class _FastingDetailScreenState extends State<FastingDetailScreen> {
                         ),
                       )),
                   const SizedBox(height: 8),
-                  Text('LE TUE FONTI', style: theme.textTheme.labelSmall),
+                  Text(strings.leTueFonti, style: theme.textTheme.labelSmall),
                   const SizedBox(height: 8),
                   if (_sources.isEmpty)
                     Text(
-                      'Nessuna fonte ancora. Aggiungine una qui sotto — è solo per te.',
+                      strings.nessunaFonteAncora,
                       style: theme.textTheme.bodySmall,
                     )
                   else
@@ -265,7 +267,7 @@ class _FastingDetailScreenState extends State<FastingDetailScreen> {
                       Expanded(
                         child: TextField(
                           controller: _sourceController,
-                          decoration: const InputDecoration(hintText: 'Aggiungi una fonte...'),
+                          decoration: InputDecoration(hintText: strings.aggiungiUnaFonte),
                           onSubmitted: (_) => _addSource(),
                         ),
                       ),
@@ -274,14 +276,14 @@ class _FastingDetailScreenState extends State<FastingDetailScreen> {
                     ],
                   ),
                   const SizedBox(height: 24),
-                  Text('NOTE PERSONALI', style: theme.textTheme.labelMedium),
+                  Text(strings.notePersonali, style: theme.textTheme.labelMedium),
                   const SizedBox(height: 10),
                   TextField(
                     controller: _noteController,
                     maxLines: 4,
                     onEditingComplete: _saveNote,
                     onTapOutside: (_) => _saveNote(),
-                    decoration: const InputDecoration(hintText: 'Le tue note...'),
+                    decoration: InputDecoration(hintText: strings.leTueNote),
                   ),
                 ],
               ),

@@ -48,14 +48,15 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final strings = AppStrings.of(context);
     return SafeArea(
       bottom: false,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
         children: [
-          const PageHeader(eyebrow: 'Questo mese', title: 'Scopri'),
+          PageHeader(eyebrow: strings.questoMese, title: strings.scopri),
           const SizedBox(height: 24),
-          Text(AppStrings.of(context).focusDelGiorno.toUpperCase(),
+          Text(strings.focusDelGiorno.toUpperCase(),
               style: Theme.of(context).textTheme.labelMedium),
           const SizedBox(height: 16),
           _buildFocusCard(),
@@ -74,17 +75,15 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('INGREDIENTE DEL MESE', style: Theme.of(context).textTheme.labelSmall),
+                Text(strings.ingredienteDelMese, style: Theme.of(context).textTheme.labelSmall),
                 const SizedBox(height: 8),
                 Text(
-                  'Pepe nero × Curcumina',
+                  strings.pepeNeroCurcumina,
                   style: Theme.of(context).textTheme.headlineSmall,
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  "Insieme alla curcumina, la piperina aumenta la biodisponibilità di circa "
-                  "il 2000%. Lo stesso cucchiaino di curcuma diventa una molecola "
-                  "significativamente diversa. Vanno sempre abbinati.",
+                  strings.pepeNeroSpiegazione,
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
                 const SizedBox(height: 12),
@@ -97,49 +96,46 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
             ),
           ),
           const SizedBox(height: 32),
-          Text('SFIDE DA PROVARE', style: Theme.of(context).textTheme.labelMedium),
+          Text(strings.sfideDaProvare, style: Theme.of(context).textTheme.labelMedium),
           const SizedBox(height: 16),
-          const _ChallengeCard(
-            title: 'Sole negli occhi — 7 mattine',
-            subtitle: '5 min al giorno',
-            description:
-                'Ancora il tuo orologio circadiano. All\'aperto, senza occhiali da sole, entro 30 minuti dal risveglio.',
+          _ChallengeCard(
+            title: strings.soleNegliOcchiTitolo,
+            subtitle: strings.soleNegliOcchiSottotitolo,
+            description: strings.soleNegliOcchiDescrizione,
             evidenceLevel: EvidenceLevel.moderata,
-            evidenceNote: 'Fonte: vedi "Luce solare negli occhi" nel Ritual.',
+            evidenceNote: strings.soleNegliOcchiFonte,
           ),
-          const _ChallengeCard(
-            title: 'Inizio mouth taping',
-            subtitle: '2 settimane',
-            description:
-                'Comincia con respirazione nasale di giorno. Poi brevi sessioni serali. Poi notti intere.',
+          _ChallengeCard(
+            title: strings.mouthTapingTitolo,
+            subtitle: strings.mouthTapingSottotitolo,
+            description: strings.mouthTapingDescrizione,
             evidenceLevel: EvidenceLevel.nonVerificata,
           ),
-          const _ChallengeCard(
-            title: 'Finale freddo — 14 giorni',
-            subtitle: '30 sec / doccia',
-            description:
-                'Termina ogni doccia con acqua fredda. Osserva come cambiano umore ed energia dal 7° giorno.',
+          _ChallengeCard(
+            title: strings.finaleFreddoTitolo,
+            subtitle: strings.finaleFreddoSottotitolo,
+            description: strings.finaleFreddoDescrizione,
             evidenceLevel: EvidenceLevel.moderata,
-            evidenceNote: 'Fonte: vedi "Doccia fredda" nelle Pratiche.',
+            evidenceNote: strings.finaleFreddoFonte,
           ),
           const SizedBox(height: 32),
-          Text('PROTOCOLLI STAGIONALI', style: Theme.of(context).textTheme.labelMedium),
+          Text(strings.protocolliStagionali, style: Theme.of(context).textTheme.labelMedium),
           const SizedBox(height: 16),
-          const _ProtocolCard(
-            title: 'Detox di primavera',
-            description: 'Verdure amare, lavoro linfatico, serate più leggere.',
+          _ProtocolCard(
+            title: strings.detoxPrimaveraTitolo,
+            description: strings.detoxPrimaveraDescrizione,
           ),
-          const _ProtocolCard(
-            title: 'Idratazione estiva',
-            description: 'Sale marino al mattino, elettroliti, risciacqui freddi.',
+          _ProtocolCard(
+            title: strings.idratazioneEstivaTitolo,
+            description: strings.idratazioneEstivaDescrizione,
           ),
-          const _ProtocolCard(
-            title: 'Immunità d\'autunno',
-            description: 'Rotazione di funghi, controllo vitamina D, calore.',
+          _ProtocolCard(
+            title: strings.immunitaAutunnoTitolo,
+            description: strings.immunitaAutunnoDescrizione,
           ),
-          const _ProtocolCard(
-            title: 'Calore d\'inverno',
-            description: 'Golden milk, stack sauna, finestre di sonno più lunghe.',
+          _ProtocolCard(
+            title: strings.caloreInvernoTitolo,
+            description: strings.caloreInvernoDescrizione,
           ),
         ],
       ),
@@ -228,6 +224,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
   /// always states explicitly what's missing when it couldn't be computed.
   Widget _buildBiologicalAge(BiologicalAgeEstimate estimate) {
     final theme = Theme.of(context);
+    final strings = AppStrings.of(context);
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -237,35 +234,37 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('ETÀ BIOLOGICA (PHENOAGE)', style: theme.textTheme.labelMedium),
+          Text(strings.etaBiologicaPhenoAge, style: theme.textTheme.labelMedium),
           const SizedBox(height: 6),
           if (estimate.computed)
             Text(
-              '${estimate.phenotypicAgeYears!.toStringAsFixed(1)} anni stimati '
-              '(età anagrafica ${estimate.chronologicalAgeYears!.toStringAsFixed(1)}) — '
-              'informazione, non una diagnosi.',
+              strings.etaStimataAnni(
+                estimate.phenotypicAgeYears!.toStringAsFixed(1),
+                estimate.chronologicalAgeYears!.toStringAsFixed(1),
+              ),
               style: theme.textTheme.bodyMedium,
             )
           else
             Text(
-              estimate.reason ?? 'Stima non calcolabile.',
+              estimate.reason ?? strings.stimaNonCalcolabile,
               style: theme.textTheme.bodyMedium,
             ),
           const SizedBox(height: 6),
           if (estimate.markersUsed.isNotEmpty)
             Text(
-              'Biomarcatori usati: ${estimate.markersUsed.join(", ")}.',
+              strings.biomarcatoriUsati(estimate.markersUsed.join(", ")),
               style: theme.textTheme.bodySmall,
             ),
           if (estimate.markersMissing.isNotEmpty)
             Text(
-              'Mancanti: ${estimate.markersMissing.join(", ")}.',
+              strings.mancanti(estimate.markersMissing.join(", ")),
               style: theme.textTheme.bodySmall,
             ),
           if (estimate.sourceDocument != null)
             Text(
-              'Fonte: ${estimate.sourceDocument}'
-              '${estimate.sourceDate != null ? " (${estimate.sourceDate})" : ""}.',
+              estimate.sourceDate != null
+                  ? strings.fonteConData(estimate.sourceDocument!, estimate.sourceDate!)
+                  : strings.fonteSenzaData(estimate.sourceDocument!),
               style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.outline),
             ),
         ],

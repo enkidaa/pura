@@ -1,18 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../l10n/app_strings.dart';
 import '../../services/auth_service.dart';
 import '../../services/settings_service.dart';
 
 /// Kept simple on purpose — a personal app doesn't need an enterprise
 /// password policy, just enough to rule out trivially weak passwords.
 /// Only enforced at signup; an existing password at login isn't re-judged.
-String? _passwordValidationError(String password) {
-  if (password.length < 8) return 'Almeno 8 caratteri.';
+String? _passwordValidationError(String password, AppStrings strings) {
+  if (password.length < 8) return strings.passwordAlmeno8Caratteri;
   final hasLetter = RegExp(r'[a-zA-Z]').hasMatch(password);
   final hasDigitOrSpecial = RegExp(r'[0-9!@#$%^&*(),.?":{}|<>_\-+=\[\]~`/\\;]').hasMatch(password);
   if (!hasLetter || !hasDigitOrSpecial) {
-    return 'Almeno una lettera e un numero o carattere speciale.';
+    return strings.passwordRequisiti;
   }
   return null;
 }
@@ -44,7 +45,7 @@ class _SignInScreenState extends State<SignInScreen> {
 
   Future<void> _submit() async {
     if (_isSignUp) {
-      final passwordError = _passwordValidationError(_passwordController.text);
+      final passwordError = _passwordValidationError(_passwordController.text, AppStrings.of(context));
       if (passwordError != null) {
         setState(() => _errorMessage = passwordError);
         return;
@@ -86,6 +87,7 @@ class _SignInScreenState extends State<SignInScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final strings = AppStrings.of(context);
     return Scaffold(
       body: SafeArea(
         child: Center(
@@ -104,21 +106,21 @@ class _SignInScreenState extends State<SignInScreen> {
                 TextField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(labelText: 'Email'),
+                  decoration: InputDecoration(labelText: strings.email),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: _passwordController,
                   obscureText: true,
                   onChanged: _isSignUp ? (_) => setState(() {}) : null,
-                  decoration: const InputDecoration(labelText: 'Password'),
+                  decoration: InputDecoration(labelText: strings.password),
                 ),
                 if (_isSignUp && _passwordController.text.isNotEmpty) ...[
                   const SizedBox(height: 6),
                   Builder(builder: (context) {
-                    final error = _passwordValidationError(_passwordController.text);
+                    final error = _passwordValidationError(_passwordController.text, strings);
                     return Text(
-                      error ?? 'Password valida.',
+                      error ?? strings.passwordValida,
                       style: TextStyle(
                         fontSize: 12,
                         color: error == null
@@ -132,7 +134,7 @@ class _SignInScreenState extends State<SignInScreen> {
                   const SizedBox(height: 12),
                   TextField(
                     controller: _nicknameController,
-                    decoration: const InputDecoration(labelText: 'Nickname (opzionale)'),
+                    decoration: InputDecoration(labelText: strings.nicknameOpzionale),
                   ),
                 ],
                 if (_errorMessage != null) ...[
@@ -145,9 +147,7 @@ class _SignInScreenState extends State<SignInScreen> {
                 const SizedBox(height: 24),
                 FilledButton(
                   onPressed: _loading ? null : _submit,
-                  child: Text(_loading
-                      ? '...'
-                      : (_isSignUp ? 'Registrati' : 'Accedi')),
+                  child: Text(_loading ? '...' : (_isSignUp ? strings.registrati : strings.accedi)),
                 ),
                 const SizedBox(height: 12),
                 TextButton(
@@ -155,9 +155,7 @@ class _SignInScreenState extends State<SignInScreen> {
                       ? null
                       : () => setState(() => _isSignUp = !_isSignUp),
                   child: Text(
-                    _isSignUp
-                        ? 'Hai già un account? Accedi'
-                        : 'Non hai un account? Registrati',
+                    _isSignUp ? strings.haiGiaUnAccountAccedi : strings.nonHaiUnAccountRegistrati,
                   ),
                 ),
               ],

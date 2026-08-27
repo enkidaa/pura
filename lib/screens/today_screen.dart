@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -406,7 +407,36 @@ class _TodayScreenState extends State<TodayScreen> {
   }
 
   Future<void> _takeSkincarePhoto(SkincarePeriod period) async {
-    final picked = await ImagePicker().pickImage(source: ImageSource.camera);
+    final strings = AppStrings.of(context);
+    final source = await showCupertinoModalPopup<ImageSource>(
+      context: context,
+      builder: (sheetContext) => CupertinoActionSheet(
+        actions: [
+          CupertinoActionSheetAction(
+            onPressed: () => Navigator.of(sheetContext).pop(ImageSource.camera),
+            child: Text(strings.fotocamera),
+          ),
+          CupertinoActionSheetAction(
+            onPressed: () => Navigator.of(sheetContext).pop(ImageSource.gallery),
+            child: Text(strings.libreriaFoto),
+          ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.of(sheetContext).pop(),
+          isDestructiveAction: true,
+          child: Text(strings.annulla),
+        ),
+      ),
+    );
+    if (source == null) return;
+
+    // imageQuality forces recompression, which on iOS also normalizes the
+    // output to JPEG regardless of the source format — needed because a
+    // gallery pick is very often HEIC (Apple's default photo format),
+    // which the storage path/bucket policy below both assume is JPEG.
+    // Without this, a gallery-picked photo would upload with a mismatched
+    // .jpg extension on HEIC bytes and could fail to render later.
+    final picked = await ImagePicker().pickImage(source: source, imageQuality: 90);
     if (picked == null) return;
 
     try {
@@ -485,7 +515,7 @@ class _TodayScreenState extends State<TodayScreen> {
 
     if (mounted && log.source != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Importato da: ${log.source}')),
+        SnackBar(content: Text(strings.importatoDa(log.source!))),
       );
     }
     _saveSleep(log.bedtime, log.wakeTime);

@@ -1,3 +1,5 @@
+import '../l10n/app_strings.dart';
+
 enum PlantCategory {
   frutta,
   verdura,
@@ -10,26 +12,26 @@ enum PlantCategory {
   bevandeVegetali,
 }
 
-String plantCategoryLabel(PlantCategory category) {
+String plantCategoryLabel(PlantCategory category, AppStrings strings) {
   switch (category) {
     case PlantCategory.frutta:
-      return 'Frutta';
+      return strings.plantFrutta;
     case PlantCategory.verdura:
-      return 'Verdura';
+      return strings.plantVerdura;
     case PlantCategory.legumi:
-      return 'Legumi';
+      return strings.plantLegumi;
     case PlantCategory.cerealiIntegrali:
-      return 'Cereali integrali';
+      return strings.plantCerealiIntegrali;
     case PlantCategory.fruttaSecca:
-      return 'Frutta secca';
+      return strings.plantFruttaSecca;
     case PlantCategory.semi:
-      return 'Semi';
+      return strings.plantSemi;
     case PlantCategory.erbe:
-      return 'Erbe';
+      return strings.plantErbe;
     case PlantCategory.spezie:
-      return 'Spezie';
+      return strings.plantSpezie;
     case PlantCategory.bevandeVegetali:
-      return 'Bevande vegetali';
+      return strings.plantBevandeVegetali;
   }
 }
 

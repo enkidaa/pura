@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../app_theme.dart';
+import '../l10n/app_strings.dart';
 import 'ios_time_picker_sheet.dart';
 
 /// Duration from bedtime to wake, both plain times-of-day — always the
@@ -123,9 +124,10 @@ class _SleepDialState extends State<SleepDial> {
     // Treated as a tap on the handle — open the precise picker as a
     // fallback for anyone who finds the drag too fiddly to land exactly.
     final isBedtime = dragged == _DialHandle.bedtime;
+    final strings = AppStrings.of(context);
     final picked = await showIosTimePickerSheet(
       context: context,
-      title: isBedtime ? 'A che ora sei andato a letto?' : 'A che ora ti sei svegliato?',
+      title: isBedtime ? strings.aCheOraSeiAndatoALetto : strings.aCheOraTiSeiSvegliato,
       initialTime: isBedtime ? _bedtime : _wakeTime,
     );
     if (picked == null || !mounted) return;
@@ -316,6 +318,7 @@ Future<(TimeOfDay, TimeOfDay)?> showSleepDialSheet(
       return StatefulBuilder(
         builder: (sheetContext, setSheetState) {
           final theme = Theme.of(sheetContext);
+          final strings = AppStrings.of(sheetContext);
           final duration = sleepDurationFor(bedtime, wakeTime);
           return SafeArea(
             top: false,
@@ -329,12 +332,12 @@ Future<(TimeOfDay, TimeOfDay)?> showSleepDialSheet(
                     children: [
                       TextButton(
                         onPressed: () => Navigator.of(sheetContext).pop(),
-                        child: const Text('Annulla'),
+                        child: Text(strings.annulla),
                       ),
-                      Text('Sonno', style: theme.textTheme.titleMedium),
+                      Text(strings.sonno, style: theme.textTheme.titleMedium),
                       TextButton(
                         onPressed: () => Navigator.of(sheetContext).pop((bedtime, wakeTime)),
-                        child: const Text('Fatto'),
+                        child: Text(strings.fatto),
                       ),
                     ],
                   ),

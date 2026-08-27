@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_strings.dart';
 import '../models/plant_food.dart';
 import '../services/plant_diversity_service.dart';
 import '../widgets/app_card.dart';
@@ -62,7 +63,7 @@ class _PlantDiversityScreenState extends State<PlantDiversityScreen> {
     }
     if (canonical == null) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('"$trimmed" non è nel nostro elenco di piante — scegline una dalle categorie qui sotto.'),
+        content: Text('"$trimmed" ${AppStrings.of(context).pianteNonInElenco}'),
       ));
       return;
     }
@@ -79,7 +80,7 @@ class _PlantDiversityScreenState extends State<PlantDiversityScreen> {
       if (!mounted) return;
       setState(() => _logs = previous);
       ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Impossibile salvare, riprova')));
+          .showSnackBar(SnackBar(content: Text(AppStrings.of(context).impossibileSalvareRiprova)));
     }
   }
 
@@ -93,13 +94,14 @@ class _PlantDiversityScreenState extends State<PlantDiversityScreen> {
       if (!mounted) return;
       setState(() => _logs = previous);
       ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Impossibile rimuovere, riprova')));
+          .showSnackBar(SnackBar(content: Text(AppStrings.of(context).impossibileRimuovereRiprova)));
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final strings = AppStrings.of(context);
     final scheme = theme.colorScheme;
     final count = _loggedNames.length;
     final progress = (count / _weeklyGoal).clamp(0.0, 1.0);
@@ -121,10 +123,9 @@ class _PlantDiversityScreenState extends State<PlantDiversityScreen> {
                     ],
                   ),
                   PageHeader(
-                    eyebrow: 'Questa settimana',
-                    title: '30 Punti Piante',
-                    subtitle: 'Traccia la diversità vegetale, non le calorie. '
-                        'Ogni pianta unica conta un punto.',
+                    eyebrow: strings.questaSettimana,
+                    title: strings.punti30Piante,
+                    subtitle: strings.puntiPianteSottotitolo,
                   ),
                   const SizedBox(height: 20),
                   AppCard(
@@ -139,10 +140,10 @@ class _PlantDiversityScreenState extends State<PlantDiversityScreen> {
                               children: [
                                 Icon(Icons.eco_outlined, size: 16, color: scheme.outline),
                                 const SizedBox(width: 8),
-                                Text('DIVERSITÀ SETTIMANALE', style: theme.textTheme.labelMedium),
+                                Text(strings.diversitaSettimanale, style: theme.textTheme.labelMedium),
                               ],
                             ),
-                            Text('Obiettivo $_weeklyGoal', style: theme.textTheme.bodySmall),
+                            Text(strings.obiettivoN(_weeklyGoal), style: theme.textTheme.bodySmall),
                           ],
                         ),
                         const SizedBox(height: 12),
@@ -152,7 +153,7 @@ class _PlantDiversityScreenState extends State<PlantDiversityScreen> {
                             children: [
                               TextSpan(text: '$count'),
                               TextSpan(
-                                text: ' / $_weeklyGoal piante',
+                                text: strings.suGoalPiante(_weeklyGoal),
                                 style: theme.textTheme.bodyMedium,
                               ),
                             ],
@@ -171,8 +172,8 @@ class _PlantDiversityScreenState extends State<PlantDiversityScreen> {
                         const SizedBox(height: 10),
                         Text(
                           count >= _weeklyGoal
-                              ? 'Obiettivo raggiunto questa settimana.'
-                              : 'Ancora ${_weeklyGoal - count} piante per raggiungere l\'obiettivo.',
+                              ? strings.obiettivoRaggiuntoSettimana
+                              : strings.ancoraNPianteObiettivo(_weeklyGoal - count),
                           style: theme.textTheme.bodySmall,
                         ),
                       ],
@@ -194,15 +195,12 @@ class _PlantDiversityScreenState extends State<PlantDiversityScreen> {
                           children: [
                             Icon(Icons.info_outline, size: 16, color: scheme.outline),
                             const SizedBox(width: 8),
-                            Text('PERCHÉ 30?', style: theme.textTheme.labelMedium),
+                            Text(strings.perche30, style: theme.textTheme.labelMedium),
                           ],
                         ),
                         const SizedBox(height: 10),
                         Text(
-                          'Studi sul microbioma (American Gut Project) mostrano che chi consuma '
-                          '30+ piante diverse a settimana ha una diversità batterica intestinale '
-                          'significativamente più ricca. Fibre, polifenoli e fitonutrienti diversi '
-                          'nutrono ceppi batterici diversi.',
+                          strings.spiegazionePerche30,
                           style: theme.textTheme.bodyMedium,
                         ),
                       ],
@@ -213,14 +211,14 @@ class _PlantDiversityScreenState extends State<PlantDiversityScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('AGGIUNGI RAPIDAMENTE', style: theme.textTheme.labelMedium),
+                        Text(strings.aggiungiRapidamente, style: theme.textTheme.labelMedium),
                         const SizedBox(height: 12),
                         Row(
                           children: [
                             Expanded(
                               child: TextField(
                                 controller: _searchController,
-                                decoration: const InputDecoration(hintText: 'Cerca o scrivi una pianta...'),
+                                decoration: InputDecoration(hintText: strings.cercaOScriviUnaPianta),
                                 onSubmitted: _addPlant,
                               ),
                             ),
@@ -240,7 +238,7 @@ class _PlantDiversityScreenState extends State<PlantDiversityScreen> {
                               return Padding(
                                 padding: const EdgeInsets.only(right: 8),
                                 child: ChoiceChip(
-                                  label: Text(plantCategoryLabel(category)),
+                                  label: Text(plantCategoryLabel(category, strings)),
                                   selected: selected,
                                   onSelected: (_) => setState(() {
                                     _selectedCategory = category;
@@ -281,8 +279,8 @@ class _PlantDiversityScreenState extends State<PlantDiversityScreen> {
                                   onPressed: () => setState(() => _categoryExpanded = !_categoryExpanded),
                                   child: Text(
                                     _categoryExpanded
-                                        ? 'Mostra meno'
-                                        : 'Mostra tutti (${categoryFoods.length})',
+                                        ? strings.mostraMeno
+                                        : strings.mostraTuttiN(categoryFoods.length),
                                   ),
                                 ),
                             ],
@@ -296,11 +294,11 @@ class _PlantDiversityScreenState extends State<PlantDiversityScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('CONSUMATE QUESTA SETTIMANA · $count', style: theme.textTheme.labelMedium),
+                        Text(strings.consumateQuestaSettimana(count), style: theme.textTheme.labelMedium),
                         const SizedBox(height: 12),
                         if (_loggedNames.isEmpty)
                           Text(
-                            'Nessuna pianta annotata ancora. Inizia con la colazione.',
+                            strings.nessunaPiantaAnnotataAncora,
                             style: theme.textTheme.bodyMedium,
                           )
                         else
@@ -322,7 +320,7 @@ class _PlantDiversityScreenState extends State<PlantDiversityScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('PER GRUPPO', style: theme.textTheme.labelMedium),
+                        Text(strings.perGruppo, style: theme.textTheme.labelMedium),
                         const SizedBox(height: 12),
                         ...PlantCategory.values.map((category) {
                           final n = _loggedNames
@@ -336,7 +334,7 @@ class _PlantDiversityScreenState extends State<PlantDiversityScreen> {
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Text(plantCategoryLabel(category), style: theme.textTheme.bodyMedium),
+                                    Text(plantCategoryLabel(category, strings), style: theme.textTheme.bodyMedium),
                                     Text('$n', style: theme.textTheme.bodyMedium),
                                   ],
                                 ),

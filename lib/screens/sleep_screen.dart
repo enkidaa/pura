@@ -8,8 +8,6 @@ import '../widgets/app_card.dart';
 import '../widgets/page_header.dart';
 import '../widgets/sleep_dial.dart';
 
-const _weekdayShort = ['L', 'M', 'M', 'G', 'V', 'S', 'D'];
-
 class SleepScreen extends StatefulWidget {
   const SleepScreen({super.key});
 
@@ -135,7 +133,7 @@ class _SleepScreenState extends State<SleepScreen> {
     }
     if (mounted && log.source != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Importato da: ${log.source}')),
+        SnackBar(content: Text(strings.importatoDa(log.source!))),
       );
     }
     await _save(log.bedtime, log.wakeTime);
@@ -149,6 +147,7 @@ class _SleepScreenState extends State<SleepScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final strings = AppStrings.of(context);
     final variability = _wakeTimeVariabilityMinutes();
     final average = _weeklyAverage;
 
@@ -165,7 +164,7 @@ class _SleepScreenState extends State<SleepScreen> {
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                   const SizedBox(height: 8),
-                  const PageHeader(eyebrow: 'Salute', title: 'Sonno'),
+                  PageHeader(eyebrow: strings.salute, title: strings.sonno),
                   const SizedBox(height: 20),
                   AppCard(
                     blur: 0,
@@ -176,14 +175,14 @@ class _SleepScreenState extends State<SleepScreen> {
                           _lastNight == null ? '—' : _formatDuration(_lastNight!.duration),
                           style: theme.textTheme.displaySmall,
                         ),
-                        Text('Notte scorsa', style: theme.textTheme.labelMedium),
+                        Text(strings.notteScorsa, style: theme.textTheme.labelMedium),
                         const SizedBox(height: 16),
                         Row(
                           children: [
                             Expanded(
                               child: OutlinedButton(
                                 onPressed: _logManually,
-                                child: const Text('Registra manualmente'),
+                                child: Text(strings.registraManualmente),
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -191,7 +190,7 @@ class _SleepScreenState extends State<SleepScreen> {
                               child: OutlinedButton.icon(
                                 onPressed: _importFromHealth,
                                 icon: const Icon(Icons.favorite_outline, size: 16),
-                                label: const Text('Da Salute'),
+                                label: Text(strings.daSalute),
                               ),
                             ),
                           ],
@@ -200,7 +199,7 @@ class _SleepScreenState extends State<SleepScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  Text('ULTIME 7 NOTTI', style: theme.textTheme.labelMedium),
+                  Text(strings.ultime7Notti, style: theme.textTheme.labelMedium),
                   const SizedBox(height: 12),
                   AppCard(blur: 0, child: _SleepTimeline(logs: _recentLogs)),
                   const SizedBox(height: 24),
@@ -216,7 +215,7 @@ class _SleepScreenState extends State<SleepScreen> {
                                 average == null ? '—' : _formatDuration(average),
                                 style: theme.textTheme.titleLarge,
                               ),
-                              Text('Media 7 notti', style: theme.textTheme.bodySmall),
+                              Text(strings.media7Notti, style: theme.textTheme.bodySmall),
                             ],
                           ),
                         ),
@@ -232,7 +231,7 @@ class _SleepScreenState extends State<SleepScreen> {
                                 variability == null ? '—' : '${variability}m',
                                 style: theme.textTheme.titleLarge,
                               ),
-                              Text('Variabilità sveglia', style: theme.textTheme.bodySmall),
+                              Text(strings.variabilitaSveglia, style: theme.textTheme.bodySmall),
                             ],
                           ),
                         ),
@@ -259,8 +258,9 @@ class _SleepTimeline extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final strings = AppStrings.of(context);
     if (logs.isEmpty) {
-      return Text('Nessun dato ancora — registra la notte scorsa per iniziare.',
+      return Text(strings.nessunDatoSonnoAncora,
           style: theme.textTheme.bodySmall);
     }
 
@@ -288,7 +288,7 @@ class _SleepTimeline extends StatelessWidget {
         // Labeled by the evening the night started (reference's weekday),
         // not bedtime's own date — a 00:30 bedtime is still "last night" in
         // everyday terms, even though its calendar date is wake day.
-        final weekday = _weekdayShort[reference.weekday - 1];
+        final weekday = strings.weekdayLettersMonToSun[reference.weekday - 1];
 
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 6),

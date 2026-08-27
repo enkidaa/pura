@@ -1,10 +1,6 @@
 import 'package:flutter/material.dart';
 
-const _weekdayHeaders = ['L', 'M', 'M', 'G', 'V', 'S', 'D'];
-const _monthNames = [
-  'Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno',
-  'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre',
-];
+import '../l10n/app_strings.dart';
 
 /// Calendar range picker for retroactively logging a past period: tap a
 /// start day, tap an end day (or just the same day again for a 1-day
@@ -70,6 +66,9 @@ class _CycleCalendarSheetBodyState extends State<_CycleCalendarSheetBody> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final strings = AppStrings.of(context);
+    final weekdayHeaders = strings.weekdayHeadersMonToSun;
+    final monthNames = strings.monthNames;
 
     final firstOfMonth = DateTime(_visibleMonth.year, _visibleMonth.month, 1);
     final daysInMonth = DateTime(_visibleMonth.year, _visibleMonth.month + 1, 0).day;
@@ -88,14 +87,14 @@ class _CycleCalendarSheetBodyState extends State<_CycleCalendarSheetBody> {
               children: [
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Annulla'),
+                  child: Text(strings.annulla),
                 ),
-                Text('Seleziona giorni', style: theme.textTheme.titleMedium),
+                Text(strings.selezionaGiorni, style: theme.textTheme.titleMedium),
                 TextButton(
                   onPressed: _rangeStart == null
                       ? null
                       : () => Navigator.of(context).pop((_rangeStart!, _selectedLengthDays)),
-                  child: const Text('Fatto'),
+                  child: Text(strings.fatto),
                 ),
               ],
             ),
@@ -108,7 +107,7 @@ class _CycleCalendarSheetBodyState extends State<_CycleCalendarSheetBody> {
                   onPressed: () => _changeMonth(-1),
                 ),
                 Text(
-                  '${_monthNames[_visibleMonth.month - 1]} ${_visibleMonth.year}',
+                  '${monthNames[_visibleMonth.month - 1]} ${_visibleMonth.year}',
                   style: theme.textTheme.titleSmall,
                 ),
                 IconButton(
@@ -118,7 +117,7 @@ class _CycleCalendarSheetBodyState extends State<_CycleCalendarSheetBody> {
               ],
             ),
             Row(
-              children: _weekdayHeaders
+              children: weekdayHeaders
                   .map((w) => Expanded(
                         child: Center(
                           child: Text(w, style: theme.textTheme.labelSmall),
@@ -166,8 +165,8 @@ class _CycleCalendarSheetBodyState extends State<_CycleCalendarSheetBody> {
             const SizedBox(height: 12),
             Text(
               _rangeStart == null
-                  ? 'Tocca il primo giorno di mestruazione.'
-                  : 'Mestruazione di $_selectedLengthDays giorni.',
+                  ? strings.toccaIlPrimoGiornoDiMestruazione
+                  : strings.mestruazioneDiNGiorni(_selectedLengthDays),
               style: theme.textTheme.bodySmall,
             ),
           ],

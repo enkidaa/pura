@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../app_theme.dart';
 import '../l10n/app_locale.dart';
+import '../l10n/app_strings.dart';
 import '../services/settings_service.dart';
 import '../widgets/ambient_background.dart';
 import '../widgets/grain_overlay.dart';
@@ -74,7 +75,10 @@ class _GlassNavBar extends StatefulWidget {
   final int currentIndex;
   final ValueChanged<int> onSelect;
 
-  static const labels = ['Oggi', 'Lab', 'Pratiche', 'Scopri', 'Profilo'];
+  static List<String> labels(BuildContext context) {
+    final strings = AppStrings.of(context);
+    return [strings.navOggi, strings.navLab, strings.navPratiche, strings.navScopri, strings.navProfilo];
+  }
 
   @override
   State<_GlassNavBar> createState() => _GlassNavBarState();
@@ -101,6 +105,7 @@ class _GlassNavBarState extends State<_GlassNavBar> with SingleTickerProviderSta
     final scheme = Theme.of(context).colorScheme;
     final tokens = Theme.of(context).extension<CircadianTokens>()!;
     final reduceMotion = MediaQuery.of(context).disableAnimations;
+    final labels = _GlassNavBar.labels(context);
 
     // No BackdropFilter here anymore — this bar is always on screen, so a
     // real blur would have to re-sample its backdrop on every scroll frame
@@ -117,10 +122,10 @@ class _GlassNavBarState extends State<_GlassNavBar> with SingleTickerProviderSta
           height: 64,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: List.generate(_GlassNavBar.labels.length, (i) {
+            children: List.generate(labels.length, (i) {
               final active = i == widget.currentIndex;
               return _NavTarget(
-                label: _GlassNavBar.labels[i],
+                label: labels[i],
                 active: active,
                 color: active ? scheme.primary : scheme.outline,
                 pulse: _pulse,

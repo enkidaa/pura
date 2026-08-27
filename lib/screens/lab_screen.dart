@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_strings.dart';
 import '../models/app_settings.dart';
 import '../models/schedule_spec.dart';
 import '../models/supplement_catalog.dart';
@@ -10,14 +11,14 @@ import '../widgets/evidence_badge.dart';
 import '../widgets/page_header.dart';
 import 'supplement_detail_screen.dart';
 
-String _approachLabel(WellnessApproach approach) {
+String _approachLabel(WellnessApproach approach, AppStrings strings) {
   switch (approach) {
     case WellnessApproach.natural:
-      return 'naturale';
+      return strings.approccioNaturale;
     case WellnessApproach.balanced:
-      return 'bilanciato';
+      return strings.approccioBilanciato;
     case WellnessApproach.scientific:
-      return 'scientifico';
+      return strings.approccioScientifico;
   }
 }
 
@@ -96,10 +97,11 @@ class _LabScreenState extends State<LabScreen> {
   }
 
   String _reasonFor(SupplementCatalogItem item) {
+    final strings = AppStrings.of(context);
     if (item.approachAffinity.contains(_approach)) {
-      return 'Perché: si allinea al tuo approccio ${_approachLabel(_approach)} — ${item.benefits}';
+      return strings.perche('${strings.siAllineaAlTuoApproccio} ${_approachLabel(_approach, strings)} — ${item.benefits}');
     }
-    return 'Perché: ${item.benefits}';
+    return strings.perche(item.benefits);
   }
 
   List<SupplementCatalogItem> _filteredCatalog() {
@@ -113,6 +115,7 @@ class _LabScreenState extends State<LabScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final strings = AppStrings.of(context);
     final yours = supplementCatalog.where((i) => _routineIds.contains(i.id)).toList();
 
     return SafeArea(
@@ -120,22 +123,22 @@ class _LabScreenState extends State<LabScreen> {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
         children: [
-          const PageHeader(
-            eyebrow: 'Spazio di lavoro',
-            title: 'Integratori',
-            subtitle: 'Naturali e mirati/da ricerca, monitorati nel tempo — non un consiglio medico.',
+          PageHeader(
+            eyebrow: strings.spazioDiLavoro,
+            title: strings.integratori,
+            subtitle: strings.integratoriSottotitolo,
           ),
           const SizedBox(height: 24),
           if (_loading)
             const Center(child: CircularProgressIndicator())
           else ...[
-            Text('I TUOI INTEGRATORI', style: theme.textTheme.labelMedium),
+            Text(strings.iTuoiIntegratori.toUpperCase(), style: theme.textTheme.labelMedium),
             const SizedBox(height: 10),
             if (yours.isEmpty)
               Padding(
                 padding: const EdgeInsets.only(bottom: 20),
                 child: Text(
-                  'Non hai ancora aggiunto integratori alla tua routine. Esplorali qui sotto.',
+                  strings.nessunIntegratoreInRoutine,
                   style: theme.textTheme.bodySmall,
                 ),
               )
@@ -149,7 +152,7 @@ class _LabScreenState extends State<LabScreen> {
                   )),
               const SizedBox(height: 20),
             ],
-            Text('CONSIGLIATI PER TE', style: theme.textTheme.labelMedium),
+            Text(strings.consigliatiPerTe.toUpperCase(), style: theme.textTheme.labelMedium),
             const SizedBox(height: 10),
             ..._recommendations().map((item) => Padding(
                   padding: const EdgeInsets.only(bottom: 8),
@@ -176,13 +179,13 @@ class _LabScreenState extends State<LabScreen> {
                   ),
                 )),
             const SizedBox(height: 20),
-            Text('ESPLORA TUTTI', style: theme.textTheme.labelMedium),
+            Text(strings.esploraTutti.toUpperCase(), style: theme.textTheme.labelMedium),
             const SizedBox(height: 10),
             TextField(
               controller: _searchController,
-              decoration: const InputDecoration(
-                hintText: 'Cerca un integratore...',
-                prefixIcon: Icon(Icons.search),
+              decoration: InputDecoration(
+                hintText: strings.cercaUnIntegratore,
+                prefixIcon: const Icon(Icons.search),
               ),
             ),
             const SizedBox(height: 10),
@@ -248,7 +251,7 @@ class _SupplementRow extends StatelessWidget {
                         if (dueToday)
                           Chip(
                             visualDensity: VisualDensity.compact,
-                            label: const Text('Oggi'),
+                            label: Text(AppStrings.of(context).oggi),
                             labelStyle: theme.textTheme.labelSmall,
                           ),
                       ],

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../l10n/app_strings.dart';
 import '../models/app_settings.dart';
 import '../models/practice.dart';
 import '../models/schedule_spec.dart';
@@ -129,6 +130,7 @@ class _PracticeDetailScreenState extends State<PracticeDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final strings = AppStrings.of(context);
     final practice = widget.practice;
 
     return Scaffold(
@@ -144,7 +146,7 @@ class _PracticeDetailScreenState extends State<PracticeDetailScreen> {
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                   const SizedBox(height: 8),
-                  Text(practiceCategoryLabel(practice.category).toUpperCase(),
+                  Text(practiceCategoryLabel(practice.category, strings).toUpperCase(),
                       style: theme.textTheme.labelMedium),
                   const SizedBox(height: 8),
                   Text(practice.name, style: theme.textTheme.displaySmall),
@@ -159,7 +161,7 @@ class _PracticeDetailScreenState extends State<PracticeDetailScreen> {
                         Chip(
                           visualDensity: VisualDensity.compact,
                           avatar: Icon(Icons.tune, size: 14, color: theme.colorScheme.primary),
-                          label: const Text('Allineato al tuo approccio'),
+                          label: Text(strings.allineatoAlTuoApproccio),
                           labelStyle: theme.textTheme.labelSmall,
                         ),
                     ],
@@ -169,7 +171,7 @@ class _PracticeDetailScreenState extends State<PracticeDetailScreen> {
                     blur: 0,
                     child: SwitchListTile(
                       contentPadding: EdgeInsets.zero,
-                      title: const Text('Nella mia routine'),
+                      title: Text(strings.nellaMiaRoutine),
                       value: _inRoutine,
                       onChanged: _toggleRoutine,
                     ),
@@ -179,33 +181,33 @@ class _PracticeDetailScreenState extends State<PracticeDetailScreen> {
                       blur: 0,
                       child: ScheduleEditor(spec: _schedule, onChanged: _updateSchedule),
                     ),
-                  Text('DESCRIZIONE', style: theme.textTheme.labelMedium),
+                  Text(strings.descrizione, style: theme.textTheme.labelMedium),
                   const SizedBox(height: 10),
                   Text(practice.description, style: theme.textTheme.bodyLarge),
                   const SizedBox(height: 20),
-                  Text('OBIETTIVO', style: theme.textTheme.labelMedium),
+                  Text(strings.obiettivo, style: theme.textTheme.labelMedium),
                   const SizedBox(height: 10),
                   Text(practice.goal, style: theme.textTheme.bodyLarge),
                   const SizedBox(height: 20),
-                  Text('BENEFICI POSSIBILI', style: theme.textTheme.labelMedium),
+                  Text(strings.beneficiPossibili, style: theme.textTheme.labelMedium),
                   const SizedBox(height: 10),
                   Text(practice.benefits, style: theme.textTheme.bodyLarge),
                   const SizedBox(height: 20),
-                  Text('COME INIZIARE', style: theme.textTheme.labelMedium),
+                  Text(strings.comeIniziare, style: theme.textTheme.labelMedium),
                   const SizedBox(height: 10),
                   Text(practice.howToStart, style: theme.textTheme.bodyLarge),
                   if (practice.risks != null) ...[
                     const SizedBox(height: 20),
-                    Text('RISCHI E CONTROINDICAZIONI', style: theme.textTheme.labelMedium),
+                    Text(strings.rischiEControindicazioni, style: theme.textTheme.labelMedium),
                     const SizedBox(height: 10),
                     Text(practice.risks!, style: theme.textTheme.bodyLarge),
                   ],
                   const SizedBox(height: 24),
-                  Text('FONTI SCIENTIFICHE', style: theme.textTheme.labelMedium),
+                  Text(strings.fontiScientifiche, style: theme.textTheme.labelMedium),
                   const SizedBox(height: 10),
                   if (practice.sources.isEmpty)
                     Text(
-                      'Nessuna fonte verificata ancora per questa pratica specifica — il livello di evidenza sopra riflette questo.',
+                      strings.nessunaFonteVerificataAncora,
                       style: theme.textTheme.bodySmall,
                     )
                   else
@@ -233,11 +235,11 @@ class _PracticeDetailScreenState extends State<PracticeDetailScreen> {
                           ),
                         )),
                   const SizedBox(height: 8),
-                  Text('LE TUE FONTI', style: theme.textTheme.labelSmall),
+                  Text(strings.leTueFonti, style: theme.textTheme.labelSmall),
                   const SizedBox(height: 8),
                   if (_sources.isEmpty)
                     Text(
-                      'Nessuna fonte ancora. Aggiungine una qui sotto — è solo per te.',
+                      strings.nessunaFonteAncora,
                       style: theme.textTheme.bodySmall,
                     )
                   else
@@ -258,7 +260,7 @@ class _PracticeDetailScreenState extends State<PracticeDetailScreen> {
                       Expanded(
                         child: TextField(
                           controller: _sourceController,
-                          decoration: const InputDecoration(hintText: 'Aggiungi una fonte...'),
+                          decoration: InputDecoration(hintText: strings.aggiungiUnaFonte),
                           onSubmitted: (_) => _addSource(),
                         ),
                       ),
@@ -267,14 +269,14 @@ class _PracticeDetailScreenState extends State<PracticeDetailScreen> {
                     ],
                   ),
                   const SizedBox(height: 24),
-                  Text('NOTE PERSONALI', style: theme.textTheme.labelMedium),
+                  Text(strings.notePersonali, style: theme.textTheme.labelMedium),
                   const SizedBox(height: 10),
                   TextField(
                     controller: _noteController,
                     maxLines: 4,
                     onEditingComplete: _saveNote,
                     onTapOutside: (_) => _saveNote(),
-                    decoration: const InputDecoration(hintText: 'Le tue note...'),
+                    decoration: InputDecoration(hintText: strings.leTueNote),
                   ),
                 ],
               ),

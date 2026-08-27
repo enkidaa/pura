@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_strings.dart';
 import '../models/app_settings.dart';
 import '../models/practice.dart';
 import '../models/practice_catalog.dart';
@@ -102,6 +103,7 @@ class _PracticesScreenState extends State<PracticesScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final strings = AppStrings.of(context);
     final results = _filtered;
 
     return SafeArea(
@@ -114,18 +116,17 @@ class _PracticesScreenState extends State<PracticesScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const PageHeader(
-                    eyebrow: 'La libreria',
-                    title: 'Pratiche',
-                    subtitle:
-                        'Abitudini e protocolli da conoscere, approfondire e — se vuoi — aggiungere alla tua routine.',
+                  PageHeader(
+                    eyebrow: strings.laLibreria,
+                    title: strings.pratiche,
+                    subtitle: strings.pratichesottotitolo,
                   ),
                   const SizedBox(height: 20),
                   TextField(
                     controller: _searchController,
-                    decoration: const InputDecoration(
-                      hintText: 'Cerca una pratica...',
-                      prefixIcon: Icon(Icons.search),
+                    decoration: InputDecoration(
+                      hintText: strings.cercaUnaPratica,
+                      prefixIcon: const Icon(Icons.search),
                     ),
                   ),
                   const SizedBox(height: 14),
@@ -136,7 +137,7 @@ class _PracticesScreenState extends State<PracticesScreen> {
                         Padding(
                           padding: const EdgeInsets.only(right: 8),
                           child: ChoiceChip(
-                            label: const Text('Tutte'),
+                            label: Text(strings.tutte),
                             selected: _selectedCategory == null,
                             onSelected: (_) => setState(() => _selectedCategory = null),
                           ),
@@ -146,7 +147,7 @@ class _PracticesScreenState extends State<PracticesScreen> {
                           return Padding(
                             padding: const EdgeInsets.only(right: 8),
                             child: ChoiceChip(
-                              label: Text(practiceCategoryLabel(category)),
+                              label: Text(practiceCategoryLabel(category, strings)),
                               selected: selected,
                               onSelected: (_) => setState(
                                 () => _selectedCategory = selected ? null : category,
@@ -163,7 +164,7 @@ class _PracticesScreenState extends State<PracticesScreen> {
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 24),
                       child: Text(
-                        'Nessuna pratica trovata.',
+                        strings.nessunaPraticaTrovata,
                         style: theme.textTheme.bodyMedium,
                         textAlign: TextAlign.center,
                       ),
@@ -208,7 +209,7 @@ class _PracticesScreenState extends State<PracticesScreen> {
                             ),
                             const SizedBox(height: 6),
                             Text(
-                              '${practiceCategoryLabel(practice.category)} · ${practice.frequency}',
+                              '${practiceCategoryLabel(practice.category, strings)} · ${practice.frequency}',
                               style: theme.textTheme.bodySmall,
                             ),
                             const SizedBox(height: 10),
@@ -221,13 +222,13 @@ class _PracticesScreenState extends State<PracticesScreen> {
                                   Chip(
                                     visualDensity: VisualDensity.compact,
                                     avatar: Icon(Icons.tune, size: 14, color: theme.colorScheme.primary),
-                                    label: const Text('Allineato al tuo approccio'),
+                                    label: Text(strings.allineatoAlTuoApproccio),
                                     labelStyle: theme.textTheme.labelSmall,
                                   ),
                                 if (dueToday)
                                   Chip(
                                     visualDensity: VisualDensity.compact,
-                                    label: const Text('Oggi'),
+                                    label: Text(strings.oggi),
                                     labelStyle: theme.textTheme.labelSmall,
                                   ),
                               ],

@@ -1,6 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
+import '../l10n/app_strings.dart';
+
 /// A time picker matching iOS's native spinner (the same wheel-style
 /// picker Orologio uses to set an alarm), as a Cupertino bottom sheet —
 /// replaces Material's `showTimePicker`, which renders as an analog clock
@@ -22,6 +24,7 @@ Future<TimeOfDay?> showIosTimePickerSheet({
   return showCupertinoModalPopup<TimeOfDay?>(
     context: context,
     builder: (sheetContext) {
+      final strings = AppStrings.of(sheetContext);
       return Container(
         height: 280,
         decoration: BoxDecoration(
@@ -38,12 +41,12 @@ Future<TimeOfDay?> showIosTimePickerSheet({
                 children: [
                   CupertinoButton(
                     onPressed: () => Navigator.of(sheetContext).pop(),
-                    child: const Text('Annulla'),
+                    child: Text(strings.annulla),
                   ),
                   Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
                   CupertinoButton(
                     onPressed: () => Navigator.of(sheetContext).pop(selected),
-                    child: const Text('Fatto'),
+                    child: Text(strings.fatto),
                   ),
                 ],
               ),

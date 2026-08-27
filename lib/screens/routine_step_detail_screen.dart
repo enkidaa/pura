@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../l10n/app_strings.dart';
 import '../models/routine_step.dart';
 import '../services/routine_progress_service.dart';
 import '../widgets/app_card.dart';
@@ -99,6 +100,7 @@ class _RoutineStepDetailScreenState extends State<RoutineStepDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final strings = AppStrings.of(context);
     final step = widget.step;
 
     return Scaffold(
@@ -114,12 +116,12 @@ class _RoutineStepDetailScreenState extends State<RoutineStepDetailScreen> {
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                   const SizedBox(height: 8),
-                  Text('IL RITUALE', style: theme.textTheme.labelMedium),
+                  Text(strings.ilRituale, style: theme.textTheme.labelMedium),
                   const SizedBox(height: 8),
                   Text(step.title, style: theme.textTheme.displaySmall),
                   const SizedBox(height: 10),
                   Chip(
-                    label: Text('${step.durationMinutes} min'),
+                    label: Text(strings.minuti(step.durationMinutes)),
                     visualDensity: VisualDensity.compact,
                   ),
                   const SizedBox(height: 20),
@@ -127,16 +129,16 @@ class _RoutineStepDetailScreenState extends State<RoutineStepDetailScreen> {
                     blur: 0,
                     child: SwitchListTile(
                       contentPadding: EdgeInsets.zero,
-                      title: const Text('Fatto oggi'),
+                      title: Text(strings.fattoOggi),
                       value: _done,
                       onChanged: _toggleDone,
                     ),
                   ),
-                  Text('INFO', style: theme.textTheme.labelMedium),
+                  Text(strings.info, style: theme.textTheme.labelMedium),
                   const SizedBox(height: 10),
                   Text(step.benefits, style: theme.textTheme.bodyLarge),
                   const SizedBox(height: 24),
-                  Text('FONTI SCIENTIFICHE', style: theme.textTheme.labelMedium),
+                  Text(strings.fontiScientifiche, style: theme.textTheme.labelMedium),
                   const SizedBox(height: 10),
                   ...step.sources.map((s) => Padding(
                         padding: const EdgeInsets.only(bottom: 12),
@@ -161,11 +163,11 @@ class _RoutineStepDetailScreenState extends State<RoutineStepDetailScreen> {
                         ),
                       )),
                   if (step.sources.isNotEmpty) const SizedBox(height: 8),
-                  Text('LE TUE FONTI', style: theme.textTheme.labelSmall),
+                  Text(strings.leTueFonti, style: theme.textTheme.labelSmall),
                   const SizedBox(height: 8),
                   if (_sources.isEmpty)
                     Text(
-                      'Nessuna fonte ancora. Aggiungine una qui sotto — è solo per te.',
+                      strings.nessunaFonteAncora,
                       style: theme.textTheme.bodySmall,
                     )
                   else
@@ -186,7 +188,7 @@ class _RoutineStepDetailScreenState extends State<RoutineStepDetailScreen> {
                       Expanded(
                         child: TextField(
                           controller: _sourceController,
-                          decoration: const InputDecoration(hintText: 'Aggiungi una fonte...'),
+                          decoration: InputDecoration(hintText: strings.aggiungiUnaFonte),
                           onSubmitted: (_) => _addSource(),
                         ),
                       ),
@@ -195,14 +197,14 @@ class _RoutineStepDetailScreenState extends State<RoutineStepDetailScreen> {
                     ],
                   ),
                   const SizedBox(height: 24),
-                  Text('NOTE PERSONALI', style: theme.textTheme.labelMedium),
+                  Text(strings.notePersonali, style: theme.textTheme.labelMedium),
                   const SizedBox(height: 10),
                   TextField(
                     controller: _noteController,
                     maxLines: 4,
                     onEditingComplete: _saveNote,
                     onTapOutside: (_) => _saveNote(),
-                    decoration: const InputDecoration(hintText: 'Le tue note...'),
+                    decoration: InputDecoration(hintText: strings.leTueNote),
                   ),
                 ],
               ),

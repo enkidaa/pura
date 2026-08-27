@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../l10n/app_strings.dart';
 import '../models/schedule_spec.dart';
 import '../models/supplement_catalog.dart';
 import '../models/supplement_reminder.dart';
@@ -9,8 +10,6 @@ import '../services/supplement_service.dart';
 import '../widgets/app_card.dart';
 import '../widgets/evidence_badge.dart';
 import '../widgets/schedule_editor.dart';
-
-const _weekdayLabels = {1: 'L', 2: 'M', 3: 'M', 4: 'G', 5: 'V', 6: 'S', 7: 'D'};
 
 class SupplementDetailScreen extends StatefulWidget {
   const SupplementDetailScreen({super.key, required this.item});
@@ -182,7 +181,11 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final strings = AppStrings.of(context);
     final item = widget.item;
+    final weekdayLabels = {
+      for (var i = 0; i < 7; i++) i + 1: strings.weekdayLettersMonToSun[i],
+    };
 
     return Scaffold(
       body: SafeArea(
@@ -197,7 +200,7 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                   const SizedBox(height: 8),
-                  Text('INTEGRATORI', style: theme.textTheme.labelMedium),
+                  Text(strings.integratoriEyebrow, style: theme.textTheme.labelMedium),
                   const SizedBox(height: 8),
                   Text(item.name, style: theme.textTheme.displaySmall),
                   const SizedBox(height: 10),
@@ -206,7 +209,9 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
                     runSpacing: 6,
                     children: [
                       Chip(label: Text(item.frequency), visualDensity: VisualDensity.compact),
-                      Chip(label: Text('${item.durationMinutes} min'), visualDensity: VisualDensity.compact),
+                      Chip(
+                          label: Text(strings.minuti(item.durationMinutes)),
+                          visualDensity: VisualDensity.compact),
                       if (item.timeOfDay != null)
                         Chip(label: Text(item.timeOfDay!), visualDensity: VisualDensity.compact),
                       EvidenceBadge(level: item.evidenceLevel),
@@ -217,7 +222,7 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
                     blur: 0,
                     child: SwitchListTile(
                       contentPadding: EdgeInsets.zero,
-                      title: const Text('Nella mia routine'),
+                      title: Text(strings.nellaMiaRoutine),
                       value: _inRoutine,
                       onChanged: _toggleRoutine,
                     ),
@@ -226,7 +231,7 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
                     blur: 0,
                     child: SwitchListTile(
                       contentPadding: EdgeInsets.zero,
-                      title: const Text('Preso oggi'),
+                      title: Text(strings.presoOggi),
                       value: _takenToday,
                       onChanged: _toggleTaken,
                     ),
@@ -243,8 +248,8 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
                       children: [
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
-                          title: const Text('Imposta promemoria'),
-                          subtitle: _savingReminder ? const Text('Salvataggio...') : null,
+                          title: Text(strings.impostaPromemoria),
+                          subtitle: _savingReminder ? Text(strings.salvataggioInCorso) : null,
                           value: _reminder.enabled,
                           onChanged: _toggleReminderEnabled,
                         ),
@@ -252,7 +257,7 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
                           const SizedBox(height: 4),
                           Wrap(
                             spacing: 6,
-                            children: _weekdayLabels.entries.map((entry) {
+                            children: weekdayLabels.entries.map((entry) {
                               final selected = _reminder.weekdays.contains(entry.key);
                               return ChoiceChip(
                                 label: Text(entry.value),
@@ -271,11 +276,11 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
                       ],
                     ),
                   ),
-                  Text('BENEFICI', style: theme.textTheme.labelMedium),
+                  Text(strings.benefici, style: theme.textTheme.labelMedium),
                   const SizedBox(height: 10),
                   Text(item.benefits, style: theme.textTheme.bodyLarge),
                   const SizedBox(height: 24),
-                  Text('FONTI SCIENTIFICHE', style: theme.textTheme.labelMedium),
+                  Text(strings.fontiScientifiche, style: theme.textTheme.labelMedium),
                   const SizedBox(height: 10),
                   ...item.sources.map((s) => Padding(
                         padding: const EdgeInsets.only(bottom: 12),
@@ -300,11 +305,11 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
                         ),
                       )),
                   if (item.sources.isNotEmpty) const SizedBox(height: 8),
-                  Text('LE TUE FONTI', style: theme.textTheme.labelSmall),
+                  Text(strings.leTueFonti, style: theme.textTheme.labelSmall),
                   const SizedBox(height: 8),
                   if (_sources.isEmpty)
                     Text(
-                      'Nessuna fonte ancora. Aggiungine una qui sotto — è solo per te.',
+                      strings.nessunaFonteAncora,
                       style: theme.textTheme.bodySmall,
                     )
                   else
@@ -325,7 +330,7 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
                       Expanded(
                         child: TextField(
                           controller: _sourceController,
-                          decoration: const InputDecoration(hintText: 'Aggiungi una fonte...'),
+                          decoration: InputDecoration(hintText: strings.aggiungiUnaFonte),
                           onSubmitted: (_) => _addSource(),
                         ),
                       ),
@@ -334,14 +339,14 @@ class _SupplementDetailScreenState extends State<SupplementDetailScreen> {
                     ],
                   ),
                   const SizedBox(height: 24),
-                  Text('NOTE PERSONALI', style: theme.textTheme.labelMedium),
+                  Text(strings.notePersonali, style: theme.textTheme.labelMedium),
                   const SizedBox(height: 10),
                   TextField(
                     controller: _noteController,
                     maxLines: 4,
                     onEditingComplete: _saveNote,
                     onTapOutside: (_) => _saveNote(),
-                    decoration: const InputDecoration(hintText: 'Le tue note...'),
+                    decoration: InputDecoration(hintText: strings.leTueNote),
                   ),
                 ],
               ),

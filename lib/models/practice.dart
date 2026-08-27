@@ -1,3 +1,4 @@
+import '../l10n/app_strings.dart';
 import 'app_settings.dart';
 import 'catalog_source.dart';
 
@@ -16,32 +17,32 @@ enum PracticeCategory {
   altro,
 }
 
-String practiceCategoryLabel(PracticeCategory category) {
+String practiceCategoryLabel(PracticeCategory category, AppStrings strings) {
   switch (category) {
     case PracticeCategory.sonnoRecupero:
-      return 'Sonno e recupero';
+      return strings.catSonnoRecupero;
     case PracticeCategory.respirazione:
-      return 'Respirazione';
+      return strings.catRespirazione;
     case PracticeCategory.meditazioneStress:
-      return 'Meditazione e stress';
+      return strings.catMeditazioneStress;
     case PracticeCategory.movimento:
-      return 'Movimento';
+      return strings.catMovimento;
     case PracticeCategory.esposizioneLuce:
-      return 'Esposizione alla luce';
+      return strings.catEsposizioneLuce;
     case PracticeCategory.alimentazione:
-      return 'Alimentazione';
+      return strings.catAlimentazione;
     case PracticeCategory.digiuno:
-      return 'Digiuno';
+      return strings.catDigiuno;
     case PracticeCategory.recupero:
-      return 'Recupero';
+      return strings.catRecupero;
     case PracticeCategory.igieneOrale:
-      return 'Igiene orale';
+      return strings.catIgieneOrale;
     case PracticeCategory.pelleCapelli:
-      return 'Pelle e capelli';
+      return strings.catPelleCapelli;
     case PracticeCategory.monitoraggioBiomarcatori:
-      return 'Monitoraggio e biomarcatori';
+      return strings.catMonitoraggioBiomarcatori;
     case PracticeCategory.altro:
-      return 'Altre pratiche';
+      return strings.catAltro;
   }
 }
 
@@ -52,18 +53,18 @@ String practiceCategoryLabel(PracticeCategory category) {
 /// stage"; nonVerificata means "not checked at all yet".
 enum EvidenceLevel { alta, moderata, limitata, preliminare, nonVerificata }
 
-String evidenceLevelLabel(EvidenceLevel level) {
+String evidenceLevelLabel(EvidenceLevel level, AppStrings strings) {
   switch (level) {
     case EvidenceLevel.alta:
-      return 'Alta';
+      return strings.evidenzaAlta;
     case EvidenceLevel.moderata:
-      return 'Moderata';
+      return strings.evidenzaModerata;
     case EvidenceLevel.limitata:
-      return 'Limitata';
+      return strings.evidenzaLimitata;
     case EvidenceLevel.preliminare:
-      return 'Preliminare';
+      return strings.evidenzaPreliminare;
     case EvidenceLevel.nonVerificata:
-      return 'Da verificare';
+      return strings.evidenzaDaVerificare;
   }
 }
 
