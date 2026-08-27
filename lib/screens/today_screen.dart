@@ -8,17 +8,23 @@ import '../l10n/app_strings.dart';
 import '../models/app_settings.dart';
 import '../models/cycle_info.dart';
 import '../models/fasting_log.dart';
+import '../models/practice_catalog.dart';
+import '../models/ritual_entry.dart';
 import '../models/routine_step.dart';
+import '../models/schedule_spec.dart';
 import '../models/sleep_log.dart';
+import '../models/supplement_catalog.dart';
 import '../services/cycle_service.dart';
 import '../services/fasting_service.dart';
 import '../services/health_service.dart';
 import '../services/plant_diversity_service.dart';
+import '../services/practice_service.dart';
 import '../services/routine_progress_service.dart';
 import '../services/settings_service.dart';
 import '../services/skincare_photo_service.dart';
 import '../services/sleep_service.dart';
 import '../services/sound_link_service.dart';
+import '../services/supplement_service.dart';
 import '../services/time_budget_service.dart';
 import '../widgets/app_card.dart';
 import '../widgets/page_header.dart';
@@ -27,8 +33,10 @@ import '../widgets/time_budget_prompt.dart';
 import 'cycle_screen.dart';
 import 'fasting_detail_screen.dart';
 import 'plant_diversity_screen.dart';
+import 'practice_detail_screen.dart';
 import 'routine_step_detail_screen.dart';
 import 'sleep_screen.dart';
+import 'supplement_detail_screen.dart';
 
 class TodayScreen extends StatefulWidget {
   const TodayScreen({super.key});
@@ -44,9 +52,19 @@ class _TodayScreenState extends State<TodayScreen> {
   final _fastingService = FastingService();
   final _soundLinkService = SoundLinkService();
   final _skincareService = SkincarePhotoService();
+  final _practiceService = PracticeService();
+  final _supplementService = SupplementService();
 
   Set<String> _completedStepIds = {};
   bool _routineLoading = true;
+
+  // What the user has added to their routine from Pratiche/Integratori,
+  // plus each item's own schedule — the Ritual only shows the ones due
+  // today, same "programmazione" concept those screens already use.
+  Set<String> _routinePracticeIds = {};
+  Map<String, ScheduleSpec> _practiceSchedules = {};
+  Set<String> _routineSupplementIds = {};
+  Map<String, ScheduleSpec> _supplementSchedules = {};
 
   Set<String> _plants = {};
 
@@ -77,6 +95,7 @@ class _TodayScreenState extends State<TodayScreen> {
   void initState() {
     super.initState();
     _loadProgress();
+    _loadRitualExtras();
     _loadPlants();
     _loadSleep();
     _loadSleepRegularity();
@@ -119,29 +138,64 @@ class _TodayScreenState extends State<TodayScreen> {
     }
   }
 
-  /// Reorders (never hides or invents) the fixed Ritual step list: the
-  /// half of the day that's actually relevant right now comes first, and
-  /// within each half, steps not yet completed today surface before ones
-  /// already done. Purely a deterministic client-side reordering of
-  /// existing data — no AI call, nothing about completion state changes.
-  List<RoutineStep> _orderedRitualSteps() {
+  /// Practices/Integratori the user added to their routine, filtered to
+  /// the ones actually due today per their own schedule (no schedule set
+  /// yet defaults to daily, same as ScheduleSpec()'s own default).
+  List<RitualEntry> _duePracticesAndSupplements() {
+    final today = DateTime.now();
+    final practices = practiceCatalog
+        .where((p) => _routinePracticeIds.contains(p.id))
+        .where((p) => (_practiceSchedules[p.id] ?? const ScheduleSpec()).isDueOn(today))
+        .map((p) => RitualEntry(
+              id: p.id,
+              title: p.name,
+              durationMinutes: parsePracticeDurationMinutes(p.frequency),
+              kind: RitualEntryKind.practice,
+            ));
+    final supplements = supplementCatalog
+        .where((s) => _routineSupplementIds.contains(s.id))
+        .where((s) => (_supplementSchedules[s.id] ?? const ScheduleSpec()).isDueOn(today))
+        .map((s) => RitualEntry(
+              id: s.id,
+              title: s.name,
+              durationMinutes: s.durationMinutes,
+              kind: RitualEntryKind.supplement,
+            ));
+    return [...practices, ...supplements];
+  }
+
+  /// Reorders (never hides or invents) the Ritual list: the half of the
+  /// day that's actually relevant right now comes first for the fixed
+  /// RoutineSteps, and within the whole combined list — fixed steps plus
+  /// whatever Practices/Integratori are due today — items not yet
+  /// completed today surface before ones already done. Purely a
+  /// deterministic client-side reordering of existing data — no AI call,
+  /// nothing about completion state changes.
+  List<RitualEntry> _orderedRitualSteps() {
     final now = TimeOfDay.now();
     final cutoff = _eveningRitualTime ?? const TimeOfDay(hour: 17, minute: 0);
     final pastCutoff =
         now.hour > cutoff.hour || (now.hour == cutoff.hour && now.minute >= cutoff.minute);
-    final byTimeOfDay = pastCutoff
-        ? [...eveningRoutineSteps, ...morningRoutineSteps]
-        : [...morningRoutineSteps, ...eveningRoutineSteps];
-    final pending = byTimeOfDay.where((s) => !_completedStepIds.contains(s.id)).toList();
-    final done = byTimeOfDay.where((s) => _completedStepIds.contains(s.id)).toList();
+    final fixedSteps = (pastCutoff
+            ? [...eveningRoutineSteps, ...morningRoutineSteps]
+            : [...morningRoutineSteps, ...eveningRoutineSteps])
+        .map((s) => RitualEntry(
+              id: s.id,
+              title: s.title,
+              durationMinutes: s.durationMinutes,
+              kind: RitualEntryKind.routineStep,
+            ));
+    final combined = [...fixedSteps, ..._duePracticesAndSupplements()];
+    final pending = combined.where((s) => !_completedStepIds.contains(s.id)).toList();
+    final done = combined.where((s) => _completedStepIds.contains(s.id)).toList();
     return [...pending, ...done];
   }
 
-  List<RoutineStep> _fitToTimeBudget(List<RoutineStep> steps) {
+  List<RitualEntry> _fitToTimeBudget(List<RitualEntry> steps) {
     final budget = _timeBudgetMinutes;
     if (budget == null) return steps;
 
-    final fitted = <RoutineStep>[];
+    final fitted = <RitualEntry>[];
     var total = 0;
     for (final step in steps) {
       if (total + step.durationMinutes > budget) continue;
@@ -187,7 +241,35 @@ class _TodayScreenState extends State<TodayScreen> {
     }
   }
 
-  Future<void> _toggleStep(RoutineStep step, bool completed) async {
+  /// Practices/Integratori the user added to their own routine from those
+  /// screens — this is the actual "Ritual isn't personalized" fix: without
+  /// this, the Ritual only ever showed the 7 fixed RoutineSteps regardless
+  /// of what the user added elsewhere.
+  Future<void> _loadRitualExtras() async {
+    try {
+      final results = await Future.wait([
+        _practiceService.loadRoutinePracticeIds(),
+        _supplementService.loadRoutineIds(),
+      ]);
+      final practiceIds = results[0];
+      final supplementIds = results[1];
+      final scheduleResults = await Future.wait([
+        _practiceService.loadSchedulesFor(practiceIds),
+        _supplementService.loadSchedulesFor(supplementIds),
+      ]);
+      if (!mounted) return;
+      setState(() {
+        _routinePracticeIds = practiceIds;
+        _practiceSchedules = scheduleResults[0];
+        _routineSupplementIds = supplementIds;
+        _supplementSchedules = scheduleResults[1];
+      });
+    } catch (_) {
+      // Ritual just falls back to the fixed steps if this fails.
+    }
+  }
+
+  Future<void> _toggleStep(RitualEntry step, bool completed) async {
     setState(() {
       if (completed) {
         _completedStepIds.add(step.id);
@@ -350,16 +432,38 @@ class _TodayScreenState extends State<TodayScreen> {
     _loadPlants();
   }
 
-  Future<void> _openStepDetail(RoutineStep step) async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => RoutineStepDetailScreen(
-          step: step,
-          initiallyDone: _completedStepIds.contains(step.id),
-        ),
-      ),
-    );
+  Future<void> _openStepDetail(RitualEntry entry) async {
+    switch (entry.kind) {
+      case RitualEntryKind.routineStep:
+        final step = [...morningRoutineSteps, ...eveningRoutineSteps]
+            .firstWhere((s) => s.id == entry.id);
+        await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => RoutineStepDetailScreen(
+              step: step,
+              initiallyDone: _completedStepIds.contains(step.id),
+            ),
+          ),
+        );
+      case RitualEntryKind.practice:
+        final practice = practiceCatalog.firstWhere((p) => p.id == entry.id);
+        if (practice.linksToFastingDetail) {
+          await Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const FastingDetailScreen()),
+          );
+        } else {
+          await Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => PracticeDetailScreen(practice: practice)),
+          );
+        }
+      case RitualEntryKind.supplement:
+        final item = supplementCatalog.firstWhere((s) => s.id == entry.id);
+        await Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => SupplementDetailScreen(item: item)),
+        );
+    }
     _loadProgress();
+    _loadRitualExtras();
   }
 
   Future<void> _importSleepFromHealth() async {

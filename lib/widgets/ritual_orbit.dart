@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../app_theme.dart';
 import '../l10n/app_strings.dart';
-import '../models/routine_step.dart';
+import '../models/ritual_entry.dart';
 
 const _shortLabels = {
   'sunlight': 'Luce',
@@ -29,10 +29,10 @@ class RitualOrbit extends StatelessWidget {
     required this.onOpenDetail,
   });
 
-  final List<RoutineStep> steps;
+  final List<RitualEntry> steps;
   final Set<String> completedIds;
-  final ValueChanged<RoutineStep> onToggle;
-  final ValueChanged<RoutineStep> onOpenDetail;
+  final ValueChanged<RitualEntry> onToggle;
+  final ValueChanged<RitualEntry> onOpenDetail;
 
   @override
   Widget build(BuildContext context) {
