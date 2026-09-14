@@ -23,7 +23,7 @@ class SupplementCatalogItem {
   final String? timeOfDay;
   final EvidenceLevel evidenceLevel;
 
-  /// Real, checked sources — never auto-generated. See CatalogSource.note
+  /// Real, checked sources, never auto-generated. See CatalogSource.note
   /// for where the evidence is preliminary rather than settled.
   final List<CatalogSource> sources;
 
@@ -34,7 +34,7 @@ class SupplementCatalogItem {
   final List<WellnessApproach> approachAffinity;
 }
 
-/// Copied from the Lovable prototype's Pratiche > Integratori group — the
+/// Copied from the Lovable prototype's Pratiche > Integratori group, the
 /// catalog is fixed (matches what's actually there), not user-editable.
 const supplementCatalog = [
   SupplementCatalogItem(
@@ -59,7 +59,7 @@ const supplementCatalog = [
     name: 'Creatina monoidrato',
     frequency: 'Quotidiano',
     durationMinutes: 1,
-    benefits: '3–5 g/die — forza, recupero, supporto cognitivo.',
+    benefits: '3–5 g/die, forza, recupero, supporto cognitivo.',
     evidenceLevel: EvidenceLevel.moderata,
     approachAffinity: [WellnessApproach.scientific],
     sources: [
@@ -81,7 +81,7 @@ const supplementCatalog = [
     approachAffinity: [WellnessApproach.natural, WellnessApproach.balanced],
     sources: [
       CatalogSource(
-        title: 'Magnesium — Health Professional Fact Sheet (NIH Office of Dietary Supplements)',
+        title: 'Magnesium, Health Professional Fact Sheet (NIH Office of Dietary Supplements)',
         url: 'https://ods.od.nih.gov/factsheets/Magnesium-HealthProfessional/',
         note: 'Ben supportato per il magnesio in generale; studi specifici sulla forma glicinato sono ancora pochi.',
       ),
@@ -97,9 +97,9 @@ const supplementCatalog = [
     approachAffinity: [WellnessApproach.scientific, WellnessApproach.balanced],
     sources: [
       CatalogSource(
-        title: 'Omega-3 Fatty Acids — Health Professional Fact Sheet (NIH Office of Dietary Supplements)',
+        title: 'Omega-3 Fatty Acids, Health Professional Fact Sheet (NIH Office of Dietary Supplements)',
         url: 'https://ods.od.nih.gov/factsheets/Omega3FattyAcids-HealthProfessional/',
-        note: 'Il livello di evidenza più solido tra i sei — claim cardiovascolare riconosciuto anche dalla FDA.',
+        note: 'Il livello di evidenza più solido tra i sei, claim cardiovascolare riconosciuto anche dalla FDA.',
       ),
     ],
   ),
@@ -128,7 +128,7 @@ const supplementCatalog = [
     approachAffinity: [WellnessApproach.natural],
     sources: [
       CatalogSource(
-        title: 'Antioxidant Supplements: What You Need To Know (NCCIH — NIH)',
+        title: 'Antioxidant Supplements: What You Need To Know (NCCIH, NIH)',
         url: 'https://www.nccih.nih.gov/health/antioxidant-supplements-what-you-need-to-know',
         note: 'Il ruolo antiossidante è reale a livello meccanicistico; l\'NCCIH segnala che le prove di beneficio clinico da integrazione (vs. dieta) restano limitate.',
       ),

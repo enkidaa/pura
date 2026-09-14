@@ -181,11 +181,9 @@ class _PlantDiversityScreenState extends State<PlantDiversityScreen> {
                   ),
                   AppCard(
                     gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
                       colors: [
-                        scheme.secondary.withValues(alpha: 0.28),
-                        scheme.primary.withValues(alpha: 0.14),
+                        scheme.secondary.withValues(alpha: 0.15),
+                        scheme.secondary.withValues(alpha: 0.15),
                       ],
                     ),
                     child: Column(

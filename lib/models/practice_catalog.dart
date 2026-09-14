@@ -5,7 +5,7 @@ import 'practice.dart';
 /// Names/frequencies drawn from the Lovable prototype's original Pratiche
 /// content, re-sorted into this project's category taxonomy. Evidence
 /// level defaults to "nonVerificata" (not individually researched) unless
-/// a source below has actually been checked and cited — fasting, sauna/
+/// a source below has actually been checked and cited, fasting, sauna/
 /// cold-contrast, and cold shower are the exceptions (Moderata, real
 /// NIH/PMC sources).
 const practiceCatalog = <Practice>[
@@ -57,7 +57,7 @@ const practiceCatalog = <Practice>[
     description: 'Andare a letto e svegliarsi alla stessa ora ogni giorno, weekend inclusi.',
     goal: 'Stabilizzare il ritmo circadiano.',
     benefits: 'La regolarità è uno dei fattori più consistentemente associati a un sonno di qualità.',
-    howToStart: 'Fissa un orario di sveglia fisso per primo — l\'orario di addormentamento si regola da sé.',
+    howToStart: 'Fissa un orario di sveglia fisso per primo, l\'orario di addormentamento si regola da sé.',
     frequency: 'Quotidiano',
     evidenceLevel: EvidenceLevel.nonVerificata,
     approachAffinity: [WellnessApproach.balanced],
@@ -251,7 +251,7 @@ const practiceCatalog = <Practice>[
     frequency: 'Quotidiano · 5 min',
     evidenceLevel: EvidenceLevel.nonVerificata,
     approachAffinity: [WellnessApproach.natural],
-    risks: 'Non fissare mai il sole quando è alto nel cielo — rischio reale per la retina.',
+    risks: 'Non fissare mai il sole quando è alto nel cielo, rischio reale per la retina.',
     tags: ['luce', 'sonno'],
   ),
 
@@ -302,7 +302,7 @@ const practiceCatalog = <Practice>[
     description: 'Un cucchiaio di aceto di mele diluito in acqua prima dei pasti principali.',
     goal: 'Attenuare la risposta glicemica post-prandiale.',
     benefits: 'Alcuni studi mostrano un effetto modesto sulla glicemia post-pasto.',
-    howToStart: 'Diluisci sempre in acqua — mai puro, è molto acido per i denti e l\'esofago.',
+    howToStart: 'Diluisci sempre in acqua, mai puro, è molto acido per i denti e l\'esofago.',
     frequency: 'Prima dei pasti principali · 1 min',
     evidenceLevel: EvidenceLevel.nonVerificata,
     approachAffinity: [WellnessApproach.scientific],
@@ -343,20 +343,20 @@ const practiceCatalog = <Practice>[
     category: PracticeCategory.digiuno,
     description: 'Mangi in una finestra di 8 ore, digiuni per le restanti 16.',
     goal: 'Restringere la finestra alimentare giornaliera.',
-    benefits: 'Benefici modesti ma reali su peso, massa grassa e alcuni marcatori glicemici — vedi fonti.',
+    benefits: 'Benefici modesti ma reali su peso, massa grassa e alcuni marcatori glicemici, vedi fonti.',
     howToStart: 'Segna il primo e ultimo pasto della giornata nella sua scheda dedicata.',
     frequency: 'Finestra quotidiana',
     evidenceLevel: EvidenceLevel.moderata,
     approachAffinity: [WellnessApproach.scientific],
     sources: [
       CatalogSource(
-        title: 'Research on intermittent fasting shows health benefits (National Institute on Aging — NIH)',
+        title: 'Research on intermittent fasting shows health benefits (National Institute on Aging, NIH)',
         url: 'https://www.nia.nih.gov/news/research-intermittent-fasting-shows-health-benefits',
       ),
       CatalogSource(
         title: 'Is time-restricted eating (8/16) beneficial for body weight and metabolism? Meta-analysis of RCTs (NIH/PMC)',
         url: 'https://www.ncbi.nlm.nih.gov/pmc/articles/PMC10002957/',
-        note: 'Benefici reali ma modesti, soprattutto in adulti in sovrappeso — non un intervento provato o universale.',
+        note: 'Benefici reali ma modesti, soprattutto in adulti in sovrappeso, non un intervento provato o universale.',
       ),
     ],
     risks: 'Da valutare con un medico in caso di gravidanza, storia di disturbi alimentari, diabete in terapia farmacologica.',
@@ -409,12 +409,12 @@ const practiceCatalog = <Practice>[
         note: 'Effetti fisiologici reali (vasocostrizione, attivazione parasimpatica) ma di breve durata.',
       ),
     ],
-    risks: 'Sconsigliato in caso di patologie cardiovascolari non controllate — consulta un medico prima di iniziare.',
+    risks: 'Sconsigliato in caso di patologie cardiovascolari non controllate, consulta un medico prima di iniziare.',
     tags: ['recupero'],
   ),
   Practice(
     id: 'recovery-cold-shower',
-    name: 'Doccia fredda — ultimi 30 sec',
+    name: 'Doccia fredda, ultimi 30 sec',
     category: PracticeCategory.recupero,
     description: 'Chiudere la doccia con 30 secondi di acqua fredda (intorno ai 14°C).',
     goal: 'Stimolo di circolazione e allerta tramite l\'esposizione al freddo.',
@@ -427,7 +427,7 @@ const practiceCatalog = <Practice>[
       CatalogSource(
         title: 'Face cooling increases cerebral blood flow (NIH/PMC)',
         url: 'https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3429079/',
-        note: 'Effetti fisiologici reali ma di breve durata — nessuna prova di beneficio duraturo.',
+        note: 'Effetti fisiologici reali ma di breve durata, nessuna prova di beneficio duraturo.',
       ),
     ],
     tags: ['recupero'],
@@ -501,7 +501,7 @@ const practiceCatalog = <Practice>[
   ),
   // Categorie aggiuntive dal catalogo completo (Igiene orale, Pelle e capelli,
   // Monitoraggio e biomarcatori) + voci mancanti in Sonno/Nutrizione/Corpo.
-  // Nessuna fonte verificata per queste — nonVerificata di default.
+  // Nessuna fonte verificata per queste, nonVerificata di default.
   Practice(
     id: 'sleep-early-bed',
     name: 'Andare a letto presto',
@@ -588,7 +588,7 @@ const practiceCatalog = <Practice>[
     description: 'Granuli di polline d\'api, in piccola quantità giornaliera.',
     goal: 'Integrazione alimentare tradizionale di proteine e micronutrienti.',
     benefits: 'Riportato per un apporto vario di nutrienti; le prove cliniche restano deboli.',
-    howToStart: 'Inizia con pochissimo per verificare tolleranza — rischio allergico reale.',
+    howToStart: 'Inizia con pochissimo per verificare tolleranza, rischio allergico reale.',
     frequency: 'Quotidiano',
     evidenceLevel: EvidenceLevel.nonVerificata,
     approachAffinity: [WellnessApproach.natural],
@@ -672,7 +672,7 @@ const practiceCatalog = <Practice>[
     frequency: 'Quotidiano',
     evidenceLevel: EvidenceLevel.nonVerificata,
     approachAffinity: [WellnessApproach.natural],
-    risks: 'Verifica la qualità/purezza della fonte — rischio di contaminanti in prodotti scadenti.',
+    risks: 'Verifica la qualità/purezza della fonte, rischio di contaminanti in prodotti scadenti.',
     tags: ['alimentazione'],
   ),
   Practice(
@@ -751,7 +751,7 @@ const practiceCatalog = <Practice>[
     frequency: 'Ogni notte',
     evidenceLevel: EvidenceLevel.nonVerificata,
     approachAffinity: [WellnessApproach.scientific],
-    risks: 'Un bite non adatto può peggiorare l\'occlusione — va fatto su misura da un professionista.',
+    risks: 'Un bite non adatto può peggiorare l\'occlusione, va fatto su misura da un professionista.',
     tags: ['igiene', 'sonno'],
   ),
   Practice(
@@ -844,7 +844,7 @@ const practiceCatalog = <Practice>[
     frequency: '2–3 volte a settimana',
     evidenceLevel: EvidenceLevel.nonVerificata,
     approachAffinity: [WellnessApproach.scientific],
-    risks: 'Aumenta la fotosensibilità — SPF obbligatorio il giorno dopo.',
+    risks: 'Aumenta la fotosensibilità, SPF obbligatorio il giorno dopo.',
     tags: ['pelle'],
   ),
   Practice(
@@ -1088,7 +1088,7 @@ const practiceCatalog = <Practice>[
     description: 'Applicazione di nastro kinesiologico su aree muscolari specifiche.',
     goal: 'Supporto percepito a muscoli o articolazioni sotto sforzo.',
     benefits: 'Uso diffuso in ambito sportivo; le prove sul beneficio meccanico reale restano miste.',
-    howToStart: 'Segui un tutorial per la zona specifica — l\'applicazione conta molto.',
+    howToStart: 'Segui un tutorial per la zona specifica, l\'applicazione conta molto.',
     frequency: 'Al bisogno',
     evidenceLevel: EvidenceLevel.nonVerificata,
     approachAffinity: [WellnessApproach.natural],
@@ -1136,7 +1136,7 @@ const practiceCatalog = <Practice>[
   ),
   Practice(
     id: 'body-thermal-shock-legs',
-    name: 'Shock termico — gambe',
+    name: 'Shock termico, gambe',
     category: PracticeCategory.recupero,
     description: 'Alternanza caldo-freddo mirata sulle gambe (es. doccia contrastante).',
     goal: 'Stimolare la circolazione locale nelle gambe.',
@@ -1145,7 +1145,7 @@ const practiceCatalog = <Practice>[
     frequency: '3 volte a settimana',
     evidenceLevel: EvidenceLevel.nonVerificata,
     approachAffinity: [WellnessApproach.scientific],
-    risks: 'Sconsigliato con problemi circolatori non controllati — consulta un medico.',
+    risks: 'Sconsigliato con problemi circolatori non controllati, consulta un medico.',
     tags: ['recupero'],
   ),
   Practice(
