@@ -18,9 +18,15 @@ const GEMINI_OUTPUT_PRICE_PER_MILLION = 0.30;
 // high demand... try again later" — Google's own wording says this is
 // transient, so retrying briefly (rather than failing the whole request
 // straight to the user) clears most of these without adding much latency.
-// 429 gets the same treatment since a per-minute burst limit looks
-// identical to it on the wire; a genuinely exhausted daily quota just
-// fails again on the retry, at the cost of one extra short wait.
+//
+// 429 is NOT given the same treatment, on purpose: the free tier's actual
+// limit here is 5 requests/MINUTE (confirmed from a live error body —
+// "Please retry in 50.85s"), not a daily cap as originally assumed below.
+// One "Genera consiglio" tap already costs 2-3 Gemini calls (suggestion +
+// independent safety classifier + optional biomarker extraction), so a
+// short retry on 429 doesn't just fail again — it burns another slot of
+// an already-exhausted per-minute budget and makes the NEXT tap more
+// likely to fail too. Fail fast instead and tell the user to wait.
 const GEMINI_RETRY_DELAYS_MS = [500, 1500];
 
 async function fetchGeminiWithRetry(url: string, body: unknown): Promise<Response> {
@@ -31,7 +37,7 @@ async function fetchGeminiWithRetry(url: string, body: unknown): Promise<Respons
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
-    if (response.ok || (response.status !== 503 && response.status !== 429)) {
+    if (response.ok || response.status !== 503) {
       return response;
     }
     lastResponse = response;
@@ -56,6 +62,11 @@ nutrizionale). Il tuo compito: produrre UN SOLO consiglio ("focus del giorno") i
 italiano, seguendo esattamente lo schema JSON richiesto.
 
 Regole:
+- "recap": una raccolta fattuale della situazione di oggi in 2-3 frasi — cosa emerge dal
+  digest così com'è (es. giorno/fase del ciclo se rilevante, quanto ha dormito, quanti
+  step della routine e quanti integratori ha completato oggi, stato del digiuno). È un
+  resoconto, non un consiglio: elenca solo dati che ti sono stati forniti nel digest, mai
+  inventati, e non anticipare qui il contenuto di "recommendation".
 - "observation": cosa noti nei dati (1 frase, basata SOLO sui dati forniti).
 - "evidence": elenco puntuale dei dati concreti usati (es. "3/7 giorni routine completata").
 - "recommendation": il consiglio vero e proprio, concreto, massimo 2 frasi.
@@ -96,6 +107,7 @@ Regole:
 const RESPONSE_SCHEMA = {
   type: "OBJECT",
   properties: {
+    recap: { type: "STRING" },
     observation: { type: "STRING" },
     evidence: { type: "ARRAY", items: { type: "STRING" } },
     recommendation: { type: "STRING" },
@@ -114,6 +126,7 @@ const RESPONSE_SCHEMA = {
     },
   },
   required: [
+    "recap",
     "observation",
     "evidence",
     "recommendation",
@@ -135,6 +148,7 @@ const SAFETY_CATEGORY_VALUES = [
 ];
 
 interface FocusSuggestion {
+  recap: string;
   observation: string;
   evidence: string[];
   recommendation: string;
@@ -152,6 +166,9 @@ function validateSuggestion(raw: unknown): { ok: true; value: FocusSuggestion } 
   }
   const obj = raw as Record<string, unknown>;
 
+  if (typeof obj.recap !== "string" || obj.recap.trim() === "") {
+    return { ok: false, reason: "Missing or invalid field: recap" };
+  }
   if (typeof obj.observation !== "string" || obj.observation.trim() === "") {
     return { ok: false, reason: "Missing or invalid field: observation" };
   }
@@ -186,6 +203,7 @@ function validateSuggestion(raw: unknown): { ok: true; value: FocusSuggestion } 
   return {
     ok: true,
     value: {
+      recap: obj.recap,
       observation: obj.observation,
       evidence: obj.evidence as string[],
       recommendation: obj.recommendation,
@@ -1175,6 +1193,12 @@ Deno.serve(async (req) => {
       error: `Gemini HTTP ${geminiResponse.status}`,
       safetyCategory: null,
     });
+    if (geminiResponse.status === 429) {
+      return jsonResponse(
+        { error: "Limite di richieste AI raggiunto per il momento — riprova tra un minuto." },
+        429,
+      );
+    }
     return jsonResponse({ error: `Gemini error: ${errorText}` }, 502);
   }
 

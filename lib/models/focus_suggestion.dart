@@ -1,5 +1,6 @@
 class FocusSuggestion {
   const FocusSuggestion({
+    required this.recap,
     required this.observation,
     required this.evidence,
     required this.recommendation,
@@ -11,6 +12,7 @@ class FocusSuggestion {
 
   factory FocusSuggestion.fromJson(Map<String, dynamic> json) {
     return FocusSuggestion(
+      recap: json['recap'] as String,
       observation: json['observation'] as String,
       evidence: List<String>.from(json['evidence'] as List),
       recommendation: json['recommendation'] as String,
@@ -21,6 +23,12 @@ class FocusSuggestion {
     );
   }
 
+  /// Factual roundup of today's tracked data — cycle day/phase, sleep,
+  /// routine/supplement completion, fasting state — distinct from
+  /// [observation], which is the single note that motivates
+  /// [recommendation]. This is "what's going on today", not "why this
+  /// suggestion".
+  final String recap;
   final String observation;
   final List<String> evidence;
   final String recommendation;

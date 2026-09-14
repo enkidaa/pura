@@ -11,7 +11,7 @@ class LocaleScope extends InheritedNotifier<ValueNotifier<AppLocale>> {
 }
 
 /// Covers Oggi + the Ritual orbit end to end. Other screens (Lab, Scopri,
-/// Pratiche, Profilo) are still Italian-only — next content pass.
+/// Pratiche, Profilo) are still Italian-only, next content pass.
 class AppStrings {
   const AppStrings(this.locale);
 
@@ -112,7 +112,7 @@ class AppStrings {
   String get obiettivo16h => t('obiettivo 16h', 'goal 16h', 'objectif 16h');
 
   String get cicloNonTracciato =>
-      t('Ciclo — non ancora tracciato', 'Cycle — not tracked yet', 'Cycle — pas encore suivi');
+      t('Ciclo, non ancora tracciato', 'Cycle, not tracked yet', 'Cycle, pas encore suivi');
   String giornoFase(int day, String phase) =>
       t('Giorno $day · fase $phase', 'Day $day · phase $phase', 'Jour $day · phase $phase');
   String prossimoCiclo(String date, int avgDays) => t(
@@ -135,9 +135,9 @@ class AppStrings {
   String get doppioTapSegna =>
       t('Doppio tap sul cerchio per segnare come fatto', 'Double-tap the circle to mark it done', 'Double-tapez le cercle pour le marquer comme fait');
   String get fattoDoppioTapAnnulla => t(
-        'Fatto — doppio tap per annullare',
-        'Done — double-tap to undo',
-        'Fait — double-tapez pour annuler',
+        'Fatto, doppio tap per annullare',
+        'Done, double-tap to undo',
+        'Fait, double-tapez pour annuler',
       );
 
   // Auth
@@ -169,9 +169,9 @@ class AppStrings {
   String get spazioDiLavoro => t('Spazio di lavoro', 'Workspace', 'Espace de travail');
   String get integratori => t('Integratori', 'Supplements', 'Compléments');
   String get integratoriSottotitolo => t(
-        'Naturali e mirati/da ricerca, monitorati nel tempo — non un consiglio medico.',
-        'Natural and targeted/research-backed, tracked over time — not medical advice.',
-        'Naturels et ciblés/issus de la recherche, suivis dans le temps — pas un avis médical.',
+        'Naturali e mirati/da ricerca, monitorati nel tempo, non un consiglio medico.',
+        'Natural and targeted/research-backed, tracked over time, not medical advice.',
+        'Naturels et ciblés/issus de la recherche, suivis dans le temps, pas un avis médical.',
       );
   String get iTuoiIntegratori => t('I tuoi integratori', 'Your supplements', 'Vos compléments');
   String get nessunIntegratoreInRoutine => t(
@@ -230,9 +230,9 @@ class AppStrings {
   String get laLibreria => t('La libreria', 'The library', 'La bibliothèque');
   String get pratiche => t('Pratiche', 'Practices', 'Pratiques');
   String get pratichesottotitolo => t(
-        'Abitudini e protocolli da conoscere, approfondire e — se vuoi — aggiungere alla tua routine.',
-        'Habits and protocols to learn about, explore, and — if you want — add to your routine.',
-        'Habitudes et protocoles à découvrir, approfondir et — si vous le souhaitez — ajouter à votre routine.',
+        'Abitudini e protocolli da conoscere, approfondire e, se vuoi, aggiungere alla tua routine.',
+        'Habits and protocols to learn about, explore, and, if you want, add to your routine.',
+        'Habitudes et protocoles à découvrir, approfondir et, si vous le souhaitez, ajouter à votre routine.',
       );
   String get cercaUnaPratica => t('Cerca una pratica...', 'Search a practice...', 'Rechercher une pratique...');
   String get tutte => t('Tutte', 'All', 'Toutes');
@@ -251,15 +251,15 @@ class AppStrings {
       t('RISCHI E CONTROINDICAZIONI', 'RISKS AND CONTRAINDICATIONS', 'RISQUES ET CONTRE-INDICATIONS');
   String get fontiScientifiche => t('FONTI SCIENTIFICHE', 'SCIENTIFIC SOURCES', 'SOURCES SCIENTIFIQUES');
   String get nessunaFonteVerificataAncora => t(
-        'Nessuna fonte verificata ancora per questa pratica specifica — il livello di evidenza sopra riflette questo.',
-        'No verified source yet for this specific practice — the evidence level above reflects that.',
-        'Aucune source vérifiée pour l’instant pour cette pratique spécifique — le niveau de preuve ci-dessus le reflète.',
+        'Nessuna fonte verificata ancora per questa pratica specifica, il livello di evidenza sopra riflette questo.',
+        'No verified source yet for this specific practice, the evidence level above reflects that.',
+        'Aucune source vérifiée pour l’instant pour cette pratique spécifique, le niveau de preuve ci-dessus le reflète.',
       );
   String get leTueFonti => t('LE TUE FONTI', 'YOUR SOURCES', 'VOS SOURCES');
   String get nessunaFonteAncora => t(
-        'Nessuna fonte ancora. Aggiungine una qui sotto — è solo per te.',
-        'No sources yet. Add one below — it’s just for you.',
-        'Aucune source pour l’instant. Ajoutez-en une ci-dessous — c’est juste pour vous.',
+        'Nessuna fonte ancora. Aggiungine una qui sotto, è solo per te.',
+        'No sources yet. Add one below, it’s just for you.',
+        'Aucune source pour l’instant. Ajoutez-en une ci-dessous, c’est juste pour vous.',
       );
   String get aggiungiUnaFonte => t('Aggiungi una fonte...', 'Add a source...', 'Ajouter une source...');
   String get notePersonali => t('NOTE PERSONALI', 'PERSONAL NOTES', 'NOTES PERSONNELLES');
@@ -297,16 +297,16 @@ class AppStrings {
   String get notificaFinestraDigiunoTitolo =>
       t('La finestra si sta per chiudere', 'Your eating window is closing soon', 'Votre fenêtre alimentaire se ferme bientôt');
   String get notificaFinestraDigiunoBody => t(
-        'Sono passate 7h30 dal primo pasto — la finestra si chiude tra 30 minuti.',
-        'It\'s been 7h30 since your first meal — the window closes in 30 minutes.',
-        'Cela fait 7h30 depuis votre premier repas — la fenêtre se ferme dans 30 minutes.',
+        'Sono passate 7h30 dal primo pasto, la finestra si chiude tra 30 minuti.',
+        'It\'s been 7h30 since your first meal, the window closes in 30 minutes.',
+        'Cela fait 7h30 depuis votre premier repas, la fenêtre se ferme dans 30 minutes.',
       );
   String get digiunoSpiegazione => t(
-        'Finestra 16:8 — mangi in una fascia di 8 ore, digiuni per le restanti 16. '
+        'Finestra 16:8, mangi in una fascia di 8 ore, digiuni per le restanti 16. '
             'Segna l\'ultimo pasto di ieri e il primo di oggi per tracciare la finestra.',
-        'A 16:8 window — you eat within an 8-hour span, and fast for the remaining 16. '
+        'A 16:8 window, you eat within an 8-hour span, and fast for the remaining 16. '
             'Mark yesterday\'s last meal and today\'s first to track the window.',
-        'Fenêtre 16:8 — vous mangez sur une plage de 8 heures et jeûnez pour les 16 restantes. '
+        'Fenêtre 16:8, vous mangez sur une plage de 8 heures et jeûnez pour les 16 restantes. '
             'Marquez le dernier repas d\'hier et le premier d\'aujourd\'hui pour suivre la fenêtre.',
       );
 
@@ -384,9 +384,9 @@ class AppStrings {
       );
   String get perGruppo => t('PER GRUPPO', 'BY GROUP', 'PAR GROUPE');
   String get pianteNonInElenco => t(
-        'non è nel nostro elenco di piante — scegline una dalle categorie qui sotto.',
-        'isn\'t in our plant list — pick one from the categories below.',
-        'ne figure pas dans notre liste de plantes — choisissez-en une dans les catégories ci-dessous.',
+        'non è nel nostro elenco di piante, scegline una dalle categorie qui sotto.',
+        'isn\'t in our plant list, pick one from the categories below.',
+        'ne figure pas dans notre liste de plantes, choisissez-en une dans les catégories ci-dessous.',
       );
   String get impossibileRimuovereRiprova =>
       t('Impossibile rimuovere, riprova', 'Could not remove, try again', 'Impossible de supprimer, réessayez');
@@ -395,15 +395,15 @@ class AppStrings {
   String get tuoSoloSeVuoi => t('Tuo, solo se vuoi', 'Yours, only if you want', 'À vous, si vous le voulez');
   String get profilo => t('Profilo', 'Profile', 'Profil');
   String profiloSottotitolo(String email) => t(
-        'Tutto qui è opzionale. Più segnali = suggerimenti più rilevanti — ma non devi nulla.\n$email',
-        'Everything here is optional. More signals = more relevant suggestions — but you owe nothing.\n$email',
-        'Tout ici est facultatif. Plus de signaux = suggestions plus pertinentes — mais vous ne devez rien.\n$email',
+        'Tutto qui è opzionale. Più segnali = suggerimenti più rilevanti, ma non devi nulla.\n$email',
+        'Everything here is optional. More signals = more relevant suggestions, but you owe nothing.\n$email',
+        'Tout ici est facultatif. Plus de signaux = suggestions plus pertinentes, mais vous ne devez rien.\n$email',
       );
   String get nickname => t('NICKNAME', 'NICKNAME', 'SURNOM');
   String get nicknameSpiegazione => t(
-        'Usato per il saluto in Oggi — "Buongiorno, [nickname]".',
-        'Used for the greeting in Today — "Good morning, [nickname]".',
-        'Utilisé pour la salutation dans Aujourd’hui — « Bonjour, [surnom] ».',
+        'Usato per il saluto in Oggi, "Buongiorno, [nickname]".',
+        'Used for the greeting in Today, "Good morning, [nickname]".',
+        'Utilisé pour la salutation dans Aujourd’hui, « Bonjour, [surnom] ».',
       );
   String get esEnkida => t('Es. Enkida', 'E.g. Alex', 'Ex. Alex');
   String get aspetto => t('ASPETTO', 'APPEARANCE', 'APPARENCE');
@@ -432,25 +432,25 @@ class AppStrings {
   String get scientifico => t('Scientifico', 'Scientific', 'Scientifique');
   String get sesso => t('SESSO', 'SEX', 'SEXE');
   String get sessoSpiegazione => t(
-        'Opzionale — decide solo se mostrare il tracking del ciclo mestruale in Oggi.',
-        'Optional — only decides whether to show menstrual cycle tracking in Today.',
-        'Facultatif — décide seulement d\'afficher ou non le suivi du cycle menstruel dans Aujourd’hui.',
+        'Opzionale, decide solo se mostrare il tracking del ciclo mestruale in Oggi.',
+        'Optional, only decides whether to show menstrual cycle tracking in Today.',
+        'Facultatif, décide seulement d\'afficher ou non le suivi du cycle menstruel dans Aujourd’hui.',
       );
   String get nonSpecificato => t('Non specificato', 'Not specified', 'Non spécifié');
   String get donna => t('Donna', 'Woman', 'Femme');
   String get uomo => t('Uomo', 'Man', 'Homme');
   String get digiunoLabel => t('DIGIUNO', 'FASTING', 'JEÛNE');
   String get digiunoSettingSpiegazione => t(
-        'Opzionale — mostra il tracking del digiuno in Oggi solo se attivato.',
-        'Optional — shows fasting tracking in Today only if enabled.',
-        'Facultatif — affiche le suivi du jeûne dans Aujourd’hui seulement si activé.',
+        'Opzionale, mostra il tracking del digiuno in Oggi solo se attivato.',
+        'Optional, shows fasting tracking in Today only if enabled.',
+        'Facultatif, affiche le suivi du jeûne dans Aujourd’hui seulement si activé.',
       );
   String get tracciaDigiuno => t('Traccia digiuno', 'Track fasting', 'Suivre le jeûne');
   String get linguaLabel => t('LINGUA', 'LANGUAGE', 'LANGUE');
   String get linguaSpiegazione => t(
-        'Per ora traduce Oggi e il Ritual — il resto arriva a breve.',
-        'For now it translates Today and the Ritual — the rest is coming soon.',
-        'Pour l\'instant, cela traduit Aujourd’hui et le Rituel — le reste arrive bientôt.',
+        'Per ora traduce Oggi e il Ritual, il resto arriva a breve.',
+        'For now it translates Today and the Ritual, the rest is coming soon.',
+        'Pour l\'instant, cela traduit Aujourd’hui et le Rituel, le reste arrive bientôt.',
       );
   String get ritualeSerale => t('RITUALE SERALE', 'EVENING RITUAL', 'RITUEL DU SOIR');
   String get ritualeSeraleSpiegazione => t(
@@ -465,11 +465,11 @@ class AppStrings {
       t('Suggerisci il rituale serale dopo le', 'Suggest the evening ritual after', 'Suggérer le rituel du soir après');
   String get dataDiNascitaLabel => t('DATA DI NASCITA', 'DATE OF BIRTH', 'DATE DE NAISSANCE');
   String get dataDiNascitaSpiegazione => t(
-        'Opzionale — serve solo per calcolare l\'età biologica stimata (PhenoAge) da un referto '
+        'Opzionale, serve solo per calcolare l\'età biologica stimata (PhenoAge) da un referto '
             'del sangue caricato qui sotto. Senza data di nascita, quella stima non può essere calcolata.',
-        'Optional — only used to calculate the estimated biological age (PhenoAge) from a blood '
+        'Optional, only used to calculate the estimated biological age (PhenoAge) from a blood '
             'test uploaded below. Without a date of birth, that estimate can\'t be calculated.',
-        'Facultatif — sert uniquement à calculer l\'âge biologique estimé (PhenoAge) à partir d\'un '
+        'Facultatif, sert uniquement à calculer l\'âge biologique estimé (PhenoAge) à partir d\'un '
             'bilan sanguin téléchargé ci-dessous. Sans date de naissance, cette estimation ne peut pas être calculée.',
       );
   String get dataDiNascitaPicker => t('Data di nascita', 'Date of birth', 'Date de naissance');
@@ -490,16 +490,16 @@ class AppStrings {
   // Health context (profile)
   String get contestoSalute => t('CONTESTO DI SALUTE', 'HEALTH CONTEXT', 'CONTEXTE DE SANTÉ');
   String get contestoSaluteSpiegazione => t(
-        'Opzionale — condizioni, diagnosi o altro contesto che vuoi che l\'AI conosca quando genera i suoi consigli.',
-        'Optional — conditions, diagnoses, or other context you want the AI to know when it generates its suggestions.',
-        'Facultatif — conditions, diagnostics ou autre contexte que vous voulez que l\'IA connaisse pour générer ses conseils.',
+        'Opzionale, condizioni, diagnosi o altro contesto che vuoi che l\'AI conosca quando genera i suoi consigli.',
+        'Optional, conditions, diagnoses, or other context you want the AI to know when it generates its suggestions.',
+        'Facultatif, conditions, diagnostics ou autre contexte que vous voulez que l\'IA connaisse pour générer ses conseils.',
       );
   // Onboarding quiz
   String get benvenutoInPura => t('Benvenuto in Pura', 'Welcome to Pura', 'Bienvenue sur Pura');
   String get onboardingSottotitolo => t(
-        'Qualche domanda veloce per personalizzare l\'app — puoi cambiare tutto in qualsiasi momento dal Profilo.',
-        'A few quick questions to personalize the app — you can change everything anytime from Profile.',
-        'Quelques questions rapides pour personnaliser l\'application — vous pouvez tout changer à tout moment depuis le Profil.',
+        'Qualche domanda veloce per personalizzare l\'app, puoi cambiare tutto in qualsiasi momento dal Profilo.',
+        'A few quick questions to personalize the app, you can change everything anytime from Profile.',
+        'Quelques questions rapides pour personnaliser l\'application, vous pouvez tout changer à tout moment depuis le Profil.',
       );
   String get iniziaOra => t('Inizia', 'Get started', 'Commencer');
   String get saltaOnboarding => t('Salta per ora', 'Skip for now', 'Passer pour l\'instant');
@@ -569,9 +569,9 @@ class AppStrings {
   String get media7Notti => t('Media 7 notti', '7-night average', 'Moyenne 7 nuits');
   String get variabilitaSveglia => t('Variabilità sveglia', 'Wake time variability', 'Variabilité du réveil');
   String get nessunDatoSonnoAncora => t(
-        'Nessun dato ancora — registra la notte scorsa per iniziare.',
-        'No data yet — log last night to get started.',
-        'Aucune donnée pour l\'instant — enregistrez la nuit dernière pour commencer.',
+        'Nessun dato ancora, registra la notte scorsa per iniziare.',
+        'No data yet, log last night to get started.',
+        'Aucune donnée pour l\'instant, enregistrez la nuit dernière pour commencer.',
       );
   String importatoDa(String source) =>
       t('Importato da: $source', 'Imported from: $source', 'Importé depuis : $source');
@@ -600,13 +600,13 @@ class AppStrings {
       t('Nessun ciclo registrato ancora.', 'No cycle logged yet.', 'Aucun cycle enregistré pour l\'instant.');
   String get disclaimerStimeCiclo => t(
         'Le stime di durata mestruale e finestra fertile sono indicative, non '
-            'misurate — quest\'app registra solo la data di inizio. Non usarle come '
+            'misurate, quest\'app registra solo la data di inizio. Non usarle come '
             'metodo contraccettivo.',
         'Period length and fertile window estimates are indicative, not '
-            'measured — this app only logs the start date. Don\'t use them as a '
+            'measured, this app only logs the start date. Don\'t use them as a '
             'contraceptive method.',
         'Les estimations de durée des règles et de fenêtre fertile sont indicatives, non '
-            'mesurées — cette application n\'enregistre que la date de début. Ne les utilisez pas '
+            'mesurées, cette application n\'enregistre que la date de début. Ne les utilisez pas '
             'comme méthode contraceptive.',
       );
   String cicloCorrenteIniziatoIl(String date, int days) => t(
@@ -647,7 +647,7 @@ class AppStrings {
             'significativement différente. Elles doivent toujours être associées.',
       );
   String get sfideDaProvare => t('SFIDE DA PROVARE', 'CHALLENGES TO TRY', 'DÉFIS À ESSAYER');
-  String get soleNegliOcchiTitolo => t('Sole negli occhi — 7 mattine', 'Sunlight in your eyes — 7 mornings', 'Soleil dans les yeux — 7 matins');
+  String get soleNegliOcchiTitolo => t('Sole negli occhi, 7 mattine', 'Sunlight in your eyes, 7 mornings', 'Soleil dans les yeux, 7 matins');
   String get soleNegliOcchiSottotitolo => t('5 min al giorno', '5 min a day', '5 min par jour');
   String get soleNegliOcchiDescrizione => t(
         'Ancora il tuo orologio circadiano. All\'aperto, senza occhiali da sole, entro 30 minuti dal risveglio.',
@@ -663,7 +663,7 @@ class AppStrings {
         'Start with nasal breathing during the day. Then short evening sessions. Then full nights.',
         'Commencez par la respiration nasale en journée. Puis de courtes séances le soir. Puis des nuits entières.',
       );
-  String get finaleFreddoTitolo => t('Finale freddo — 14 giorni', 'Cold finish — 14 days', 'Finition froide — 14 jours');
+  String get finaleFreddoTitolo => t('Finale freddo, 14 giorni', 'Cold finish, 14 days', 'Finition froide, 14 jours');
   String get finaleFreddoSottotitolo => t('30 sec / doccia', '30 sec / shower', '30 sec / douche');
   String get finaleFreddoDescrizione => t(
         'Termina ogni doccia con acqua fredda. Osserva come cambiano umore ed energia dal 7° giorno.',
@@ -699,9 +699,9 @@ class AppStrings {
       );
   String get etaBiologicaPhenoAge => t('ETÀ BIOLOGICA (PHENOAGE)', 'BIOLOGICAL AGE (PHENOAGE)', 'ÂGE BIOLOGIQUE (PHENOAGE)');
   String etaStimataAnni(String estimated, String chronological) => t(
-        '$estimated anni stimati (età anagrafica $chronological) — informazione, non una diagnosi.',
-        '$estimated years estimated (chronological age $chronological) — information, not a diagnosis.',
-        '$estimated ans estimés (âge chronologique $chronological) — information, pas un diagnostic.',
+        '$estimated anni stimati (età anagrafica $chronological), informazione, non una diagnosi.',
+        '$estimated years estimated (chronological age $chronological), information, not a diagnosis.',
+        '$estimated ans estimés (âge chronologique $chronological), information, pas un diagnostic.',
       );
   String get stimaNonCalcolabile => t('Stima non calcolabile.', 'Estimate not calculable.', 'Estimation non calculable.');
   String biomarcatoriUsati(String list) =>
@@ -710,6 +710,14 @@ class AppStrings {
   String fonteConData(String source, String date) =>
       t('Fonte: $source ($date).', 'Source: $source ($date).', 'Source : $source ($date).');
   String fonteSenzaData(String source) => t('Fonte: $source.', 'Source: $source.', 'Source : $source.');
+
+  // Focus del giorno card
+  String get laTuaGiornata => t('LA TUA GIORNATA', 'YOUR DAY', 'VOTRE JOURNÉE');
+  String get limiteAiRaggiunto => t(
+        'Limite di richieste AI raggiunto per il momento, riprova tra un minuto.',
+        'AI request limit reached for now, try again in a minute.',
+        'Limite de requêtes IA atteinte pour le moment, réessayez dans une minute.',
+      );
 
   // Skincare photo picker
   String get fotocamera => t('Fotocamera', 'Camera', 'Appareil photo');
@@ -727,9 +735,9 @@ class AppStrings {
   String get faseSospeso => t('Sospeso', 'Suspended', 'Suspendu');
   String get faseNotte => t('Notte', 'Night', 'Nuit');
   String get ruotaPerVedereTutto => t(
-        'Ruota per vedere tutto — questi non entrano nel tuo tempo di oggi',
-        'Rotate to see everything — these don\'t fit your time today',
-        'Faites pivoter pour tout voir — ceux-ci ne rentrent pas dans votre temps aujourd\'hui',
+        'Ruota per vedere tutto, questi non entrano nel tuo tempo di oggi',
+        'Rotate to see everything, these don\'t fit your time today',
+        'Faites pivoter pour tout voir, ceux-ci ne rentrent pas dans votre temps aujourd\'hui',
       );
   String circadianPhaseLabel(CircadianPhase phase) {
     switch (phase) {

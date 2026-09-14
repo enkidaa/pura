@@ -29,6 +29,7 @@ import '../services/sound_link_service.dart';
 import '../services/supplement_service.dart';
 import '../services/time_budget_service.dart';
 import '../widgets/app_card.dart';
+import '../widgets/focus_del_giorno_card.dart';
 import '../widgets/page_header.dart';
 import '../widgets/ritual_orbit.dart';
 import '../widgets/time_budget_prompt.dart';
@@ -645,6 +646,8 @@ class _TodayScreenState extends State<TodayScreen> {
             ),
           ],
           const SizedBox(height: 24),
+          const FocusDelGiornoCard(),
+          const SizedBox(height: 32),
           _sectionTitle(strings.ritual),
           if (_timeBudgetMinutes != null &&
               ritualSteps.length < allSteps.length) ...[
