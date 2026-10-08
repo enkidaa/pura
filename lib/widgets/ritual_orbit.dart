@@ -6,16 +6,6 @@ import '../app_theme.dart';
 import '../l10n/app_strings.dart';
 import '../models/ritual_entry.dart';
 
-const _shortLabels = {
-  'sunlight': 'Luce',
-  'lymphatic_drainage': 'Viso',
-  'salt_water': 'Acqua',
-  'cold_rinse': 'Freddo',
-  'double_cleansing': 'Detersione',
-  'targeted_serum': 'Siero',
-  'retinoid': 'Retinoide',
-};
-
 /// The "Ritual" — a circular pick of the day's routine steps around a
 /// center completion ring, styled like a small solar system: a thin
 /// orbit path, a glowing center, quiet minimal planets. Tap opens the
@@ -98,7 +88,7 @@ class _RitualOrbitState extends State<RitualOrbit> {
                     child: Opacity(
                       opacity: outOfBudget ? 0.4 : 1.0,
                       child: _OrbitPlanet(
-                        label: _shortLabels[entry.id] ?? entry.title.split(' ').first,
+                        label: entry.title.split(' ').first,
                         on: on,
                         onTap: () => widget.onOpenDetail(entry),
                         onDoubleTap: () => widget.onToggle(entry),

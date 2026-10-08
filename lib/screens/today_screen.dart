@@ -12,7 +12,6 @@ import '../models/cycle_info.dart';
 import '../models/fasting_log.dart';
 import '../models/practice_catalog.dart';
 import '../models/ritual_entry.dart';
-import '../models/routine_step.dart';
 import '../models/schedule_spec.dart';
 import '../models/sleep_log.dart';
 import '../models/supplement_catalog.dart';
@@ -37,7 +36,6 @@ import 'cycle_screen.dart';
 import 'fasting_detail_screen.dart';
 import 'plant_diversity_screen.dart';
 import 'practice_detail_screen.dart';
-import 'routine_step_detail_screen.dart';
 import 'sleep_screen.dart';
 import 'supplement_detail_screen.dart';
 
@@ -179,32 +177,37 @@ class _TodayScreenState extends State<TodayScreen> {
     return [...practices, ...supplements];
   }
 
-  /// Reorders (never hides or invents) the Ritual list: the half of the
-  /// day that's actually relevant right now comes first for the fixed
-  /// RoutineSteps, and within the whole combined list — fixed steps plus
-  /// whatever Practices/Integratori are due today — items not yet
-  /// completed today surface before ones already done. Purely a
-  /// deterministic client-side reordering of existing data — no AI call,
-  /// nothing about completion state changes.
+  /// Real timeOfDay tag for a supplement, when the catalog actually
+  /// carries one ("Mattino"/"Sera") — practices have no such field, so
+  /// this is deliberately narrow rather than guessing a time for content
+  /// that was never tagged with one.
+  String? _timeOfDayFor(RitualEntry entry) {
+    if (entry.kind != RitualEntryKind.supplement) return null;
+    for (final item in supplementCatalog) {
+      if (item.id == entry.id) return item.timeOfDay;
+    }
+    return null;
+  }
+
+  /// Reorders (never hides or invents) the Ritual list: whichever due
+  /// items are actually tagged for the current wake/night window surface
+  /// first, untagged ones keep their natural order, and within all of
+  /// that, items not yet completed today come before ones already done.
+  /// Purely a deterministic client-side reordering of existing data — no
+  /// AI call, nothing about completion state changes.
   List<RitualEntry> _orderedRitualSteps() {
     final now = TimeOfDay.now();
     final cutoff = _eveningRitualTime ?? const TimeOfDay(hour: 17, minute: 0);
     final pastCutoff =
         now.hour > cutoff.hour ||
         (now.hour == cutoff.hour && now.minute >= cutoff.minute);
-    final fixedSteps =
-        (pastCutoff
-                ? [...eveningRoutineSteps, ...morningRoutineSteps]
-                : [...morningRoutineSteps, ...eveningRoutineSteps])
-            .map(
-              (s) => RitualEntry(
-                id: s.id,
-                title: s.title,
-                durationMinutes: s.durationMinutes,
-                kind: RitualEntryKind.routineStep,
-              ),
-            );
-    final combined = [...fixedSteps, ..._duePracticesAndSupplements()];
+    final preferredTag = pastCutoff ? 'Sera' : 'Mattino';
+
+    final due = _duePracticesAndSupplements();
+    final matching = due.where((e) => _timeOfDayFor(e) == preferredTag).toList();
+    final rest = due.where((e) => _timeOfDayFor(e) != preferredTag).toList();
+    final combined = [...matching, ...rest];
+
     final pending = combined
         .where((s) => !_completedStepIds.contains(s.id))
         .toList();
@@ -264,10 +267,9 @@ class _TodayScreenState extends State<TodayScreen> {
     }
   }
 
-  /// Practices/Integratori the user added to their own routine from those
-  /// screens — this is the actual "Ritual isn't personalized" fix: without
-  /// this, the Ritual only ever showed the 7 fixed RoutineSteps regardless
-  /// of what the user added elsewhere.
+  /// Practices/Integratori the user added to their own routine — the
+  /// Ritual's entire content. There's no fixed/generic catalog behind it
+  /// anymore, so if this fails the Ritual is simply empty until it loads.
   Future<void> _loadRitualExtras() async {
     try {
       final results = await Future.wait([
@@ -288,7 +290,7 @@ class _TodayScreenState extends State<TodayScreen> {
         _supplementSchedules = scheduleResults[1];
       });
     } catch (_) {
-      // Ritual just falls back to the fixed steps if this fails.
+      // Ritual stays empty until this succeeds.
     }
   }
 
@@ -494,19 +496,6 @@ class _TodayScreenState extends State<TodayScreen> {
 
   Future<void> _openStepDetail(RitualEntry entry) async {
     switch (entry.kind) {
-      case RitualEntryKind.routineStep:
-        final step = [
-          ...morningRoutineSteps,
-          ...eveningRoutineSteps,
-        ].firstWhere((s) => s.id == entry.id);
-        await Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => RoutineStepDetailScreen(
-              step: step,
-              initiallyDone: _completedStepIds.contains(step.id),
-            ),
-          ),
-        );
       case RitualEntryKind.practice:
         final practice = practiceCatalog.firstWhere((p) => p.id == entry.id);
         if (practice.linksToFastingDetail) {

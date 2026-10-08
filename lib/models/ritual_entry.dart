@@ -2,14 +2,15 @@
 /// shows a single unified list, but each entry still needs to know where
 /// to route on tap (a different detail screen per kind) and where its
 /// real data lives.
-enum RitualEntryKind { routineStep, practice, supplement }
+enum RitualEntryKind { practice, supplement }
 
-/// A single item in today's Ritual — the fixed fasting/skincare/light
-/// RoutineSteps, plus whichever Practices and Integratori the user has
-/// added to their own routine and are due today per their own schedule.
-/// Completion is tracked the same way for every kind: routine_completions
-/// keyed by [id] (a plain text column, not tied to any one catalog —
-/// same reuse pattern as routine_step_notes/sources).
+/// A single item in today's Ritual — whichever Practices and Integratori
+/// the user has actually added to their own routine and are due today per
+/// their own schedule. No fixed/generic catalog is mixed in — the Ritual
+/// only ever reflects what the user chose. Completion is tracked the same
+/// way for every kind: routine_completions keyed by [id] (a plain text
+/// column, not tied to any one catalog — same reuse pattern as
+/// routine_step_notes/sources).
 class RitualEntry {
   const RitualEntry({
     required this.id,
